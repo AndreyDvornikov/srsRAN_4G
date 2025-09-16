@@ -1,0 +1,57 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "srsenb: attach gdbserver",
+      "type": "cppdbg",
+      "request": "launch",
+      "program": "${workspaceFolder}/build/debug/srsenb/src/srsenb",
+      "cwd": "${workspaceFolder}/build/debug/srsenb/src",
+      "MIMode": "gdb",
+      "miDebuggerPath": "/usr/bin/gdb",
+      "miDebuggerServerAddress": "localhost:2345",
+      "useExtendedRemote": true,
+      "stopAtEntry": false,
+      "setupCommands": [
+        { "text": "-enable-pretty-printing", "ignoreFailures": true },
+        { "text": "set sysroot /", "ignoreFailures": true }
+      ],
+      "preLaunchTask": "start-srsenb-gdbserver",
+      "postDebugTask": "stop-srsenb-gdbserver"
+    },
+
+    {
+      "name": "srsepc: attach gdbserver",
+      "type": "cppdbg",
+      "request": "launch",
+      "program": "${workspaceFolder}/build/debug/srsepc/src/srsepc",
+      "cwd": "${workspaceFolder}/build/debug/srsepc/src",
+      "MIMode": "gdb",
+      "miDebuggerPath": "/usr/bin/gdb",
+      "miDebuggerServerAddress": "localhost:2435",
+      "useExtendedRemote": true,
+      "stopAtEntry": false,
+      "setupCommands": [
+        { "text": "-enable-pretty-printing", "ignoreFailures": true },
+        { "text": "set sysroot /", "ignoreFailures": true }
+      ]
+    },
+
+    {
+      "name": "srsue: attach gdbserver",
+      "type": "cppdbg",
+      "request": "launch",
+      "program": "${workspaceFolder}/build/debug/srsue/src/srsue",
+      "cwd": "${workspaceFolder}/build/debug/srsue/src",
+      "MIMode": "gdb",
+      "miDebuggerPath": "/usr/bin/gdb",
+      "miDebuggerServerAddress": "localhost:2535",
+      "useExtendedRemote": true,
+      "stopAtEntry": false,
+      "setupCommands": [
+        { "text": "-enable-pretty-printing", "ignoreFailures": true },
+        { "text": "set sysroot /", "ignoreFailures": true }
+      ]
+    }
+  ]
+}

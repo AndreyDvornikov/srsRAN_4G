@@ -23,3 +23,18 @@ Support
 
 Mailing list: https://lists.srsran.com/mailman/listinfo/srsran-users
 
+### Custom buld guide
+
+1. Install dependencies
+
+[sudo apt-get install libboost-all-dev]
+
+```sh
+sudo apt-get install build-essential cmake libfftw3-dev libmbedtls-dev libboost-program-options-dev libconfig++-dev libsctp-dev
+```
+
+FOR srsGUI
+
+```sh
+sudo apt-get install libboost-system-dev libboost-test-dev libboost-thread-dev libqwt-qt5-dev qtbase5-dev
+```
