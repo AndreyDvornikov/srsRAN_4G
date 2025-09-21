@@ -2,8 +2,12 @@
 
 set -e
 
-SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"
-ROOT_DIR="$(cd -- "${SCRIPT_DIR}/.." && pwd -P)"
+_SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE}")" && pwd -P)"
+
+source "$_SCRIPT_DIR/../helpers/args.sh"
+source "$_SCRIPT_DIR/../helpers/terminal.sh" 
+
+ROOT_DIR="$(cd -- "${_SCRIPT_DIR}/.." && pwd -P)"
 
 BUILD_TYPE=${1:-Debug}
 BUILD_TYPE=$(echo "$BUILD_TYPE" | tr '[:upper:]' '[:lower:]')
@@ -22,9 +26,9 @@ BUILD_DIR="${ROOT_DIR}/build/${BUILD_TYPE,,}"
 mkdir -p "$BUILD_DIR"
 
 echo "Configuring $BUILD_TYPE build in $BUILD_DIR..."
-cmake -S "$ROOT_DIR" -B "$BUILD_DIR" -DCMAKE_BUILD_TYPE=$BUILD_TYPE
+cmake -S "$ROOT_DIR" -B "$BUILD_DIR" -DCMAKE_BUILD_TYPE=$BUILD_TYPE "${app_argv[@]}"
 
 echo "Building $BUILD_TYPE..."
-cmake --build "$BUILD_DIR" -- -j$(nproc)
+cmake --build "$BUILD_DIR" -- -j$(nproc) "${app_argv[@]}"
 
 echo "Build completed in $BUILD_DIR"
