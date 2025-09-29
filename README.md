@@ -30,7 +30,7 @@ Mailing list: https://lists.srsran.com/mailman/listinfo/srsran-users
 [sudo apt-get install libboost-all-dev]
 
 ```sh
-sudo apt-get install build-essential cmake libfftw3-dev libmbedtls-dev libboost-program-options-dev libconfig++-dev libsctp-dev
+sudo apt-get install build-essential cmake libfftw3-dev libmbedtls-dev libboost-program-options-dev libconfig++-dev libsctp-dev libdw-dev libbfd-dev libdwarf-dev libelf-dev
 ```
 
 FOR srsGUI

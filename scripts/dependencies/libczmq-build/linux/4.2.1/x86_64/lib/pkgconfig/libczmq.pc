@@ -3,7 +3,7 @@
 #  Read the zproject/README.md for information about making permanent changes. #
 ################################################################################
 
-prefix=/home/d-moskovskikh/aes-source/libczmq-build/linux/4.2.1/x86_64
+prefix=#INSTALL_PREFIX_FOR_EDIT#
 exec_prefix=${prefix}
 libdir=${prefix}/lib
 includedir=${prefix}/include

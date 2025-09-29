@@ -27,7 +27,7 @@ if [ $EXEC_REL_ON_RELEASE = 1 ]; then
         echo "setcap cap_sys_admin,cap_sys_nice,cap_ipc_lock,cap_net_admin,cap_net_bind_service,cap_net_raw+eip capabillities already exists"
     fi 
 
-    open_in_console_gui "$EXEC_PATH/srsue/src/srsue"
+    open_in_console_gui "$EXEC_PATH/srsue/src/srsue" "$_SCRIPT_DIR/../../srsconfig/ue/ue1/ue.conf"
 fi 
 
 if [ $EXEC_REL_ON_DEBUG = 1 ]; then 
@@ -40,8 +40,8 @@ if [ $EXEC_REL_ON_DEBUG = 1 ]; then
     fi 
 
     if [ $GDB_ON = 1 ]; then 
-        open_in_console_gui gdbserver --once "${GDB_ADDR:-:2365}" "$EXEC_PATH/srsue/src/srsue" --gw.netns=ue1
+        open_in_console_gui gdbserver --once "${GDB_ADDR:-:2365}" "$EXEC_PATH/srsue/src/srsue" "$_SCRIPT_DIR/../../srsconfig/ue/ue1/ue.conf"
     else 
-        open_in_console_gui "$EXEC_PATH/srsue/src/srsue" --gw.netns=ue1
+        open_in_console_gui "$EXEC_PATH/srsue/src/srsue" "$_SCRIPT_DIR/../../srsconfig/ue/ue1/ue.conf"
     fi 
 fi 

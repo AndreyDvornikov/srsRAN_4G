@@ -1,4 +1,4 @@
-prefix=/home/d-moskovskikh/build/zmq-4.3.5/linux/x86_64
+prefix=#INSTALL_PREFIX_FOR_EDIT#
 exec_prefix=${prefix}
 libdir=${exec_prefix}/lib
 includedir=${prefix}/include

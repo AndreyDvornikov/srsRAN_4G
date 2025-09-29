@@ -24,7 +24,8 @@ if [ $EXEC_REL_ON_RELEASE = 1 ]; then
         echo "setcap cap_sys_admin,cap_net_admin,cap_net_bind_service,cap_net_raw+eip capabillities already exists"
     fi 
 
-    open_in_console_gui "$EXEC_PATH/srsepc/src/srsepc"
+    open_in_console_gui "$EXEC_PATH/srsepc/src/srsepc" "$_SCRIPT_DIR/../../srsconfig/epc/epc.conf"\
+        --hss.db_file="$_SCRIPT_DIR/../../srsconfig/epc/user_db.csv"
 fi 
 
 if [ $EXEC_REL_ON_DEBUG = 1 ]; then 
@@ -38,8 +39,10 @@ if [ $EXEC_REL_ON_DEBUG = 1 ]; then
     fi 
 
     if [ $GDB_ON = 1 ]; then 
-        open_in_console_gui gdbserver --once "${GDB_ADDR:-:2375}" "$EXEC_PATH/srsepc/src/srsepc"
+        open_in_console_gui gdbserver --once "${GDB_ADDR:-:2375}" "$EXEC_PATH/srsepc/src/srsepc" "$_SCRIPT_DIR/../../srsconfig/epc/epc.conf"\
+            --hss.db_file="$_SCRIPT_DIR/../../srsconfig/epc/user_db.csv"
     else 
-        open_in_console_gui "$EXEC_PATH/srsepc/src/srsepc"
+        open_in_console_gui "$EXEC_PATH/srsepc/src/srsepc" "$_SCRIPT_DIR/../../srsconfig/epc/epc.conf"\
+            --hss.db_file="$_SCRIPT_DIR/../../srsconfig/epc/user_db.csv"
     fi 
 fi 
