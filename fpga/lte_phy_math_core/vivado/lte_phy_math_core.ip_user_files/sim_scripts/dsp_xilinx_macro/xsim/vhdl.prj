@@ -1,0 +1,5 @@
+vhdl xil_defaultlib  \
+"../../../../lte_phy_math_core.gen/sources_1/ip/dsp_xilinx_macro/sim/dsp_xilinx_macro.vhd" \
+
+# Do not sort compile order
+nosort

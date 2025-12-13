@@ -97,6 +97,12 @@ plot( ...
 grid on;
 legend;
 
+% подумать над квантованием последовательности до разрядноси АЦП
+% pss эта [-1;1] - единичная окружность
+test_pss1 = pss_sequence;
+test_pss1_qant = complex_pss_vectors_conj(:, u_idx) * 10000;
+
+
 % добавляем шума
 
 % N = length(pss_sequence);

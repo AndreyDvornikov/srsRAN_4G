@@ -1,28 +1,46 @@
 m255
 K4
 z2
-!s12c _opt2
-Z0 !s99 nomlopt
-Z1 !s12c _opt1
+Z0 !s12c _opt2
+Z1 !s99 nomlopt
 R0
 R1
 R0
 R1
 R0
-Z2 !s12c _opt
+R1
 R0
+R1
+R0
+R1
+R0
+R1
+R0
+R1
+R0
+R1
+R0
+R1
+Z2 !s12c _opt1
+R1
 R2
-R0
+R1
 R2
-R0
-R2
-R0
-R2
-R0
-R2
-R0
-R2
-R0
+R1
+Z3 !s12c _opt
+R1
+R3
+R1
+R3
+R1
+R3
+R1
+R3
+R1
+R3
+R1
+R3
+R1
 !s11f vlog 2024.1 2024.02, Feb  1 2024
 13
 !s112 1.1
@@ -30,229 +48,283 @@ R0
 !i10e 25
 !i10f 100
 cModel Technology
-Z3 dC:/WorkPrograms/git-projects/srsRAN_4G/fpga/lte_phy_math_core/tb/tb_vector
+Z4 dC:/WorkPrograms/git-projects/srsRAN_4G/fpga/lte_phy_math_core/tb/tb_vector
 T_opt
 !s110 1764956121
 VNK?5fH6k=e9z7o5@MmQG43
-Z4 04 12 4 work tb_vector_op fast 0
+Z5 04 12 4 work tb_vector_op fast 0
 =1-f03f0305ebbc-693317d7-352-f58
-R0
-Z5 !s12f OEM100
-Z6 !s12b OEM100
-Z7 !s124 OEM100
+R1
+Z6 !s12f OEM100
+Z7 !s12b OEM100
+Z8 !s124 OEM100
 o-quiet -auto_acc_if_foreign -work work
-Z8 tCvgOpt 0
+Z9 tCvgOpt 0
 n@_opt
-Z9 OL;O;2024.1;79
-R3
+Z10 OL;O;2024.1;79
+R4
 T_opt1
 !s110 1764958295
 VQd2QNCMka6@am9DH@=DUc1
-R4
+R5
 =3-f03f0305ebbc-69332056-39e-4368
-R0
-R5
+R1
 R6
 R7
-Z10 o-quiet -auto_acc_if_foreign -work work +acc
 R8
+Z11 o-quiet -auto_acc_if_foreign -work work +acc
+R9
 n@_opt1
-R9
-R3
-T_opt2
-!s110 1765002736
-V7FE:I_8VTP5dz2FiKQ0a41
+R10
 R4
-=1-f03f0305ebbc-6933cdef-1b1-3a88
-R0
+T_opt2
+!s110 1765024748
+V>k9kWkKB;;ULgYO[IBD8n2
 R5
+=1-f03f0305ebbc-693423eb-2bb-4df8
+R1
 R6
 R7
-R10
 R8
-n@_opt2
+R11
 R9
+n@_opt2
+R10
+R4
 YAXI_LITE
-Z11 2C:/WorkPrograms/git-projects/srsRAN_4G/fpga/lte_phy_math_core/rtl/vector/vector_op.sv|C:/WorkPrograms/git-projects/srsRAN_4G/fpga/lte_phy_math_core/tb/tb_vector/tb_vector.sv
-Z12 DXx6 sv_std 3 std 0 22 9oUSJO;AeEaW`l:M@^WG92
-Z13 !s110 1765002733
+Z12 2C:/WorkPrograms/git-projects/srsRAN_4G/fpga/lte_phy_math_core/tb/tb_vector/tb_vector.sv
+Z13 DXx6 sv_std 3 std 0 22 9oUSJO;AeEaW`l:M@^WG92
+Z14 !s110 1765025029
 !i10b 1
-!s100 1U<ib;2>z:=K9bGCW]KzY2
-I@EK4??_V7[fNTCMP=4EU@0
+!s100 cdXS^3YKM?JU8ZG_]07Sb2
+IXYQ]XO4z2VOmiI90cGb6>3
 S1
-R3
-Z14 w1764958243
-Z15 FC:/WorkPrograms/git-projects/srsRAN_4G/fpga/lte_phy_math_core/rtl/svhs/types.svh
-Z16 FC:/WorkPrograms/git-projects/srsRAN_4G/fpga/lte_phy_math_core/tb/tb_vector/tb_vector.sv
-!i122 25
+R4
+Z15 w1765024499
+Z16 FC:/WorkPrograms/git-projects/srsRAN_4G/fpga/lte_phy_math_core/rtl/svhs/types.svh
+Z17 FC:/WorkPrograms/git-projects/srsRAN_4G/fpga/lte_phy_math_core/tb/tb_vector/tb_vector.sv
+!i122 95
 L0 36 0
-Z17 VDg1SIo80bB@j0V0VzS_@n1
-Z18 OL;L;2024.1;79
+Z18 VDg1SIo80bB@j0V0VzS_@n1
+Z19 OL;L;2024.1;79
 r1
 !s85 0
 31
-Z19 !s108 1765002733.000000
-Z20 !s107 C:/WorkPrograms/git-projects/srsRAN_4G/fpga/lte_phy_math_core/rtl/svhs/types.svh|C:/WorkPrograms/git-projects/srsRAN_4G/fpga/lte_phy_math_core/tb/tb_vector/tb_vector.sv|C:/WorkPrograms/git-projects/srsRAN_4G/fpga/lte_phy_math_core/rtl/vector/vector_op.sv|
-Z21 !s90 -reportprogress|300|+incdir+C:/WorkPrograms/git-projects/srsRAN_4G/fpga/lte_phy_math_core/rtl/svhs|-sv|C:/WorkPrograms/git-projects/srsRAN_4G/fpga/lte_phy_math_core/rtl/vector/vector_op.sv|C:/WorkPrograms/git-projects/srsRAN_4G/fpga/lte_phy_math_core/tb/tb_vector/tb_vector.sv|
+Z20 !s108 1765025029.000000
+Z21 !s107 C:/WorkPrograms/git-projects/srsRAN_4G/fpga/lte_phy_math_core/tb/svhs/tb_macro.svh|C:/WorkPrograms/git-projects/srsRAN_4G/fpga/lte_phy_math_core/rtl/svhs/types.svh|C:/WorkPrograms/git-projects/srsRAN_4G/fpga/lte_phy_math_core/tb/tb_vector/tb_vector.sv|
+Z22 !s90 -reportprogress|300|+incdir+C:/WorkPrograms/git-projects/srsRAN_4G/fpga/lte_phy_math_core/rtl/svhs+C:/WorkPrograms/git-projects/srsRAN_4G/fpga/lte_phy_math_core/tb/svhs|-sv|C:/WorkPrograms/git-projects/srsRAN_4G/fpga/lte_phy_math_core/tb/tb_vector/tb_vector.sv|
 !i113 0
-Z22 o-sv -L mtiAvm -L mtiRnm -L mtiOvm -L mtiUvm -L mtiUPF -L infact
-Z23 !s92 +incdir+C:/WorkPrograms/git-projects/srsRAN_4G/fpga/lte_phy_math_core/rtl/svhs -sv -L mtiAvm -L mtiRnm -L mtiOvm -L mtiUvm -L mtiUPF -L infact
-R8
+Z23 o-sv -L mtiAvm -L mtiRnm -L mtiOvm -L mtiUvm -L mtiUPF -L infact
+Z24 !s92 +incdir+C:/WorkPrograms/git-projects/srsRAN_4G/fpga/lte_phy_math_core/rtl/svhs+C:/WorkPrograms/git-projects/srsRAN_4G/fpga/lte_phy_math_core/tb/svhs -sv -L mtiAvm -L mtiRnm -L mtiOvm -L mtiUvm -L mtiUPF -L infact
+R9
 n@a@x@i_@l@i@t@e
 Yaxi_lite_if
-R11
-R12
-Z24 !s110 1764944265
+Z25 2C:/WorkPrograms/git-projects/srsRAN_4G/fpga/lte_phy_math_core/rtl/vector/vector_op.sv|C:/WorkPrograms/git-projects/srsRAN_4G/fpga/lte_phy_math_core/tb/tb_vector/tb_vector.sv
+R13
+Z26 !s110 1764944265
 !i10b 1
 !s100 YZiIaFFIeMmaI;akbm?Y32
 II6;BzGBFHa^<0ajzI`0gh2
 S1
-R3
-Z25 w1764944260
-R15
+R4
+Z27 w1764944260
 R16
+R17
 !i122 12
 L0 30 0
-R17
 R18
+R19
 r1
 !s85 0
 31
-Z26 !s108 1764944264.000000
-R20
-R21
+Z28 !s108 1764944264.000000
+Z29 !s107 C:/WorkPrograms/git-projects/srsRAN_4G/fpga/lte_phy_math_core/rtl/svhs/types.svh|C:/WorkPrograms/git-projects/srsRAN_4G/fpga/lte_phy_math_core/tb/tb_vector/tb_vector.sv|C:/WorkPrograms/git-projects/srsRAN_4G/fpga/lte_phy_math_core/rtl/vector/vector_op.sv|
+Z30 !s90 -reportprogress|300|+incdir+C:/WorkPrograms/git-projects/srsRAN_4G/fpga/lte_phy_math_core/rtl/svhs|-sv|C:/WorkPrograms/git-projects/srsRAN_4G/fpga/lte_phy_math_core/rtl/vector/vector_op.sv|C:/WorkPrograms/git-projects/srsRAN_4G/fpga/lte_phy_math_core/tb/tb_vector/tb_vector.sv|
 !i113 0
-R22
 R23
-R8
-Yaxi_stream_if
-R11
+Z31 !s92 +incdir+C:/WorkPrograms/git-projects/srsRAN_4G/fpga/lte_phy_math_core/rtl/svhs -sv -L mtiAvm -L mtiRnm -L mtiOvm -L mtiUvm -L mtiUPF -L infact
+R9
+YAXI_STREAM
 R12
 R13
+R14
+!i10b 1
+!s100 Z?ZQ]PB>=9l0X2za^e@=I3
+IeT3dlSFcWOnc8Q[Xh:M?a1
+S1
+R4
+R15
+R16
+R17
+!i122 95
+L0 42 0
+R18
+R19
+r1
+!s85 0
+31
+R20
+R21
+R22
+!i113 0
+R23
+R24
+R9
+n@a@x@i_@s@t@r@e@a@m
+Yaxi_stream_if
+R12
+R13
+!s110 1765022995
 !i10b 1
 !s100 3f;E5OYm_;oaI?E097cGb1
-I[GDbJacDA5W_fHm8>4`hz0
+I^Vc7_c<HW@SV<Cf9Bziii0
 S1
-R3
-R14
-R15
+R4
+w1765022990
 R16
-!i122 25
-L0 43 0
 R17
+!i122 86
+L0 43 0
 R18
+R19
 r1
 !s85 0
 31
-R19
-R20
+!s108 1765022995.000000
 R21
-!i113 0
 R22
+!i113 0
 R23
-R8
+R24
+R9
 YCLOCK
-R11
 R12
 R13
+R14
 !i10b 1
 !s100 l]9z089TQFL<k7fX^09gh3
-IJaL5]F=I9BQC=3lKi07g`2
+IOIbUmA[jaFg]LVQ=:z<T91
 S1
-R3
-R14
+R4
 R15
 R16
-!i122 25
-L0 13 0
 R17
+!i122 95
+L0 13 0
 R18
+R19
 r1
 !s85 0
 31
-R19
 R20
 R21
-!i113 0
 R22
+!i113 0
 R23
-R8
+R24
+R9
 n@c@l@o@c@k
 Yclock_if
-R11
-R12
-R24
+R25
+R13
+R26
 !i10b 1
 !s100 J^>RB@V1o3?@X62IkSD^N2
 I^B1@eRg<3]PJ_S_C_lbk82
 S1
-R3
-R25
-R15
+R4
+R27
 R16
+R17
 !i122 12
 L0 10 0
-R17
 R18
-r1
-!s85 0
-31
-R26
-R20
-R21
-!i113 0
-R22
-R23
-R8
-vtb_vector_op
-R11
-R12
-R13
-!i10b 1
-!s100 =dV8PQY29kXliiz:c<a<d2
-IA8?UR>6Nn@Bz>`Te?dHN10
-S1
-R3
-R14
-8C:/WorkPrograms/git-projects/srsRAN_4G/fpga/lte_phy_math_core/tb/tb_vector/tb_vector.sv
-R16
-!i122 25
-L0 4 63
-R17
-R18
-r1
-!s85 0
-31
 R19
-R20
-R21
+r1
+!s85 0
+31
+R28
+R29
+R30
 !i113 0
-R22
 R23
-R8
-vvector_op
-R11
+R31
+R9
+vtb_clock_gen
+2C:/WorkPrograms/git-projects/srsRAN_4G/fpga/lte_phy_math_core/tb/tb_clock_gen.sv
+R13
+R14
+!i10b 1
+!s100 eCYUX0z4EP>T]_@lCUOF>0
+IALVMN51jF3:_aFkgc`Y<^3
+S1
+R4
+w1765024155
+8C:/WorkPrograms/git-projects/srsRAN_4G/fpga/lte_phy_math_core/tb/tb_clock_gen.sv
+FC:/WorkPrograms/git-projects/srsRAN_4G/fpga/lte_phy_math_core/tb/tb_clock_gen.sv
+!i122 93
+L0 20 18
+R18
+R19
+r1
+!s85 0
+31
+R20
+!s107 C:/WorkPrograms/git-projects/srsRAN_4G/fpga/lte_phy_math_core/tb/svhs/tb_macro.svh|C:/WorkPrograms/git-projects/srsRAN_4G/fpga/lte_phy_math_core/rtl/svhs/types.svh|C:/WorkPrograms/git-projects/srsRAN_4G/fpga/lte_phy_math_core/tb/tb_clock_gen.sv|
+!s90 -reportprogress|300|+incdir+C:/WorkPrograms/git-projects/srsRAN_4G/fpga/lte_phy_math_core/rtl/svhs+C:/WorkPrograms/git-projects/srsRAN_4G/fpga/lte_phy_math_core/tb/svhs|-sv|C:/WorkPrograms/git-projects/srsRAN_4G/fpga/lte_phy_math_core/tb/tb_clock_gen.sv|
+!i113 0
+R23
+R24
+R9
+vtb_vector_op
 R12
 R13
+R14
+!i10b 1
+!s100 9on8G8FYS80TQOfX?[6:n0
+I?FMmhiTaYDbe:]z2[g8@h2
+S1
+R4
+w1765024462
+8C:/WorkPrograms/git-projects/srsRAN_4G/fpga/lte_phy_math_core/tb/tb_vector/tb_vector.sv
+R17
+!i122 95
+L0 6 57
+R18
+R19
+r1
+!s85 0
+31
+R20
+R21
+R22
+!i113 0
+R23
+R24
+R9
+vvector_op
+2C:/WorkPrograms/git-projects/srsRAN_4G/fpga/lte_phy_math_core/rtl/vector/vector_op.sv
+R13
+R14
 !i10b 1
 !s100 CDbH=mE_iKK5NEAAE^Rce3
-IEkH7Pz<MIlChnS?IS3Jb@1
+I2AU[77[9hIOU5jlK6NZH=3
 S1
-R3
+R4
 w1764958286
 8C:/WorkPrograms/git-projects/srsRAN_4G/fpga/lte_phy_math_core/rtl/vector/vector_op.sv
 FC:/WorkPrograms/git-projects/srsRAN_4G/fpga/lte_phy_math_core/rtl/vector/vector_op.sv
-!i122 25
+!i122 94
 L0 3 31
-R17
 R18
+R19
 r1
 !s85 0
 31
-R19
 R20
-R21
+!s107 C:/WorkPrograms/git-projects/srsRAN_4G/fpga/lte_phy_math_core/rtl/svhs/types.svh|C:/WorkPrograms/git-projects/srsRAN_4G/fpga/lte_phy_math_core/rtl/vector/vector_op.sv|
+!s90 -reportprogress|300|+incdir+C:/WorkPrograms/git-projects/srsRAN_4G/fpga/lte_phy_math_core/rtl/svhs+C:/WorkPrograms/git-projects/srsRAN_4G/fpga/lte_phy_math_core/tb/svhs|-sv|C:/WorkPrograms/git-projects/srsRAN_4G/fpga/lte_phy_math_core/rtl/vector/vector_op.sv|
 !i113 0
-R22
 R23
-R8
+R24
+R9

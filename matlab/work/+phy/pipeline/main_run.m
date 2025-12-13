@@ -88,18 +88,21 @@ SET_CHANNEL_EPA_DOPLER_SHIFT_HZ = 7;
 
 % Канал EVA
 % Включить/выключить канал EVA
-SET_CHANNEL_EVA_ENABLE = false; 
+SET_CHANNEL_EVA_ENABLE = true; 
 % Доплеровское смещение для EVA (максимальное)
 SET_CHANNEL_EVA_DOPLER_SHIFT_HZ = 30; 
 
 % Канал ETU
 % Включить/выключить канал ETU
-SET_CHANNEL_ETU_ENABLE = true;
+SET_CHANNEL_ETU_ENABLE = false;
 % Доплеровское смещение для ETU (максимальное)
 SET_CHANNEL_ETU_DOPLER_SHIFT_HZ = 300; 
 
 % Установка "статического доплера" в Гц
 SET_CHANNEL_DOPLER_OFFSET_HZ = 0;
+
+% Установка рязрядности АЦП в битах (часть модели)
+SET_ADC_BIT_DEPTH = 16;
 
 % Загрузка семплов
 %%%%%%%%%%%%%%%%%%

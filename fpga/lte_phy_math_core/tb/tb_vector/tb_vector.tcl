@@ -4,12 +4,18 @@ source [file join $this_dir ".." "head.tcl"]
 
 puts "> tb_vector.tcl"
 
-vlog +incdir+$include_dir -sv \
-    [file join $proj_root "rtl" "vector" "vector_op.sv"] \
-    [file join $proj_root "tb" "tb_vector" "tb_vector.sv"]
+lappend VLOG_FILES [file join $proj_rtl_dir "vector" "vector_op.sv"]
+lappend VLOG_FILES [file join $proj_tb_dir "tb_vector" "tb_vector.sv"] 
 
-vsim -voptargs=+acc tb_vector_op
+puts "> VLOG_ARGS=$VLOG_ARGS"
+foreach f $VLOG_FILES {
+    vlog $VLOG_ARGS -sv $f
+}
 
+# append VSIM_ARGS " -wlf tb_vector.wlf"
+
+puts "> VSIM_ARGS=$VSIM_ARGS"
+vsim $VSIM_ARGS tb_vector_op
+
+# add wave -radix binary -group clock-sig tb_vector_op/dut/i_clock/*
 add wave -recursive tb_vector_op/dut/*
-
-run 200 ns

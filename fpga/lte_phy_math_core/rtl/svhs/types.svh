@@ -28,19 +28,18 @@ interface CLOCK;
         output is_locked,
         output rst
     );  
-endinterface // clock_if
+endinterface // CLOCK
 
 /*
     gavno
 */
 interface AXI_LITE;
-
-endinterface // axi_lite_if 
+endinterface // AXI_LITE 
 
 /*
     gavno
 */
-interface axi_stream_if; 
-endinterface // axi_stream_if 
+interface AXI_STREAM; 
+endinterface // AXI_STREAM 
 
 `endif

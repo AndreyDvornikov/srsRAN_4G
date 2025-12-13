@@ -333,10 +333,16 @@ function s3( ...
     title('ФЧХ по PSS');
 
     Xp_comp = Xp ./ (H_pss + eps);
-    Hp_test = Xp_comp ./ (pss_ref + eps);
 
-    H_amp = 20*log10(abs(Hp_test));    % АЧХ в dB
-    H_phase = angle(Hp_test);          % ФЧХ в рад
+    % через conj
+    Xp_comp2 = Xp .* conj(H_pss_conj) ./ (abs(H_pss_conj).^2 + eps);
+
+    Hp_test = Xp_comp ./ (pss_ref + eps);
+    % через conj
+    Hp_test2 = Xp_comp .* (conj(pss_ref) + eps);
+
+    H_amp = 20*log10(abs(Hp_test2));    % АЧХ в dB
+    H_phase = angle(Hp_test2);          % ФЧХ в рад
     
     figure('Name','Channel estimate from PSS');
     
@@ -356,6 +362,7 @@ function s3( ...
 
     score = phy.fn.complex_corr_norm_sqabs(pss_ref.', Xp)
     score = phy.fn.complex_corr_norm_sqabs(pss_ref.', Xp_comp)
+    score = phy.fn.complex_corr_norm_sqabs(pss_ref.', Xp_comp2)
 
     %%% 
     
@@ -739,7 +746,7 @@ title('Нормированная автокорреляция vs время з�
     idx_neg62 = Nfft-31+1:Nfft;       % -31..-1
     Xsss = [Y_sss(idx_neg62); Y_sss(idx_pos62)];   % 62x1
 
-    Xsss_eq = Xsss ./ (H_pss + eps);
+    Xsss_eq = Xsss .* conj(H_pss_conj) / (abs(H_pss_conj).^2 + eps);
 
     % SSS - это bpsk
     figure('Name','SSS constellation (central 62 subcarriers) not equalized');

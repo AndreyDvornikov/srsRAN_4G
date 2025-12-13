@@ -8,7 +8,7 @@ arguments (Input)
 end
 
 arguments (Output)
-    complex_pss
+    complex_pss single
 end
 
 d_u = @(n,u) (n <= 30).*exp(-1j*pi*u.*n.*(n+1)/63) + ...

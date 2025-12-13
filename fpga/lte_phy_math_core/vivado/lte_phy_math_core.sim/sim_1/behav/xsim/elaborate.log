@@ -1,0 +1,16 @@
+Vivado Simulator v2024.2.2
+Copyright 1986-2022 Xilinx, Inc. All Rights Reserved.
+Copyright 2022-2024 Advanced Micro Devices, Inc. All Rights Reserved.
+Running: C:/WorkPrograms/Engineering/Xilinx/Vivado/2024.2/bin/unwrapped/win64.o/xelab.exe --incr --debug typical --relax --mt 2 -L xil_defaultlib -L uvm -L unisims_ver -L unimacro_ver -L secureip --snapshot lte_phy_math_core_behav xil_defaultlib.lte_phy_math_core xil_defaultlib.glbl -log elaborate.log 
+Using 2 slave threads.
+Starting static elaboration
+Pass Through NonSizing Optimizer
+Completed static elaboration
+Starting simulation data flow analysis
+WARNING: [XSIM 43-4100] "C:/WorkPrograms/git-projects/srsRAN_4G/fpga/lte_phy_math_core/vivado/lte_phy_math_core.sim/sim_1/behav/xsim/glbl.v" Line 6. Module glbl has a timescale but at least one module in design doesn't have timescale.
+WARNING: [XSIM 43-4100] "C:/WorkPrograms/git-projects/srsRAN_4G/fpga/lte_phy_math_core/vivado/lte_phy_math_core.sim/sim_1/behav/xsim/glbl.v" Line 6. Module glbl has a timescale but at least one module in design doesn't have timescale.
+Completed simulation data flow analysis
+Time Resolution for simulation is 1ps
+Compiling module xil_defaultlib.lte_phy_math_core
+Compiling module xil_defaultlib.glbl
+Built simulation snapshot lte_phy_math_core_behav

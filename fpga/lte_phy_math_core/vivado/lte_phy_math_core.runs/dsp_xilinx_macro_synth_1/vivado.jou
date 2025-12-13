@@ -1,0 +1,24 @@
+#-----------------------------------------------------------
+# Vivado v2024.2.2 (64-bit)
+# SW Build 6060944 on Thu Mar 06 19:10:01 MST 2025
+# IP Build 6050500 on Thu Mar  6 23:33:39 MST 2025
+# SharedData Build 6060542 on Thu Mar 06 10:31:07 MST 2025
+# Start of session at: Sun Dec  7 17:17:38 2025
+# Process ID         : 20388
+# Current directory  : C:/WorkPrograms/git-projects/srsRAN_4G/fpga/lte_phy_math_core/vivado/lte_phy_math_core.runs/dsp_xilinx_macro_synth_1
+# Command line       : vivado.exe -log dsp_xilinx_macro.vds -product Vivado -mode batch -messageDb vivado.pb -notrace -source dsp_xilinx_macro.tcl
+# Log file           : C:/WorkPrograms/git-projects/srsRAN_4G/fpga/lte_phy_math_core/vivado/lte_phy_math_core.runs/dsp_xilinx_macro_synth_1/dsp_xilinx_macro.vds
+# Journal file       : C:/WorkPrograms/git-projects/srsRAN_4G/fpga/lte_phy_math_core/vivado/lte_phy_math_core.runs/dsp_xilinx_macro_synth_1\vivado.jou
+# Running On         : NB-3826
+# Platform           : Windows Server 2016 or Windows 10
+# Operating System   : 26200
+# Processor Detail   : 13th Gen Intel(R) Core(TM) i7-1355U
+# CPU Frequency      : 2611 MHz
+# CPU Physical cores : 10
+# CPU Logical cores  : 12
+# Host memory        : 33998 MB
+# Swap memory        : 2147 MB
+# Total Virtual      : 36145 MB
+# Available Virtual  : 9123 MB
+#-----------------------------------------------------------
+source dsp_xilinx_macro.tcl -notrace

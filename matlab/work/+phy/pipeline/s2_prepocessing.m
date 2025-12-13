@@ -100,6 +100,8 @@ function s2()
     fprintf("\tchannel EPA: %s\n", string(phy_channel_epa_enabled)); 
     fprintf("\tchannel ETU: %s\n", string(phy_channel_etu_enabled));
     fprintf("\tchannel F DOPLER: %s Hz\n", string(phy_channel_static_dopler_offset_hz));
+
+    lte_toolbox_run();
 end 
 
 function s2_phy_ch_awgn(sigma_noise)
@@ -268,4 +270,131 @@ function apply_raylaight_profile(ch_model, fD_hz, tag)
     ref.pathDelays = ch_model.tau_ns .* 1e-9;
 
     assignin("base","lte_channel_truth_hH", ref);
+end
+
+function lte_toolbox_run()
+    % Ожидаем, что в base уже есть:
+    %  - lte_current_signal или lte_received_signal
+    %  - prb_lte_params_selected (параметры eNB: NDLRB, NCellID, Ncp, ...)
+    %  - SET_CHANNEL_DOPLER_OFFSET_HZ (для оценки частотного смещения)
+
+    % === 1. Выбор входного сигнала ===
+    if evalin("base","exist('lte_received_signal','var')")
+        rxWaveform = evalin("base","lte_received_signal");
+    else
+        rxWaveform = evalin("base","lte_current_signal");
+    end
+    rxWaveform = rxWaveform(:);
+
+    prm = evalin("base","prb_lte_params_selected");
+    Fs  = prm.sample_rate;
+
+    % Предполагаем, что есть структура enb, либо собираем её из prm
+    if evalin("base","exist('enb','var')")
+        enb = evalin("base","enb");
+    else
+        enb = struct();
+        enb.NDLRB      = 6;     % число PRB
+        enb.NCellID    = 1;     % физ. идентификатор соты
+        enb.Ng         = 'One';         % по умолчанию
+        enb.PHICHDuration = 'Normal';
+        enb.CellRefP   = 1;             % число портов RS (уточнить)
+        enb.CFI        = 3;             % допущение для стартового поиска
+        enb.DuplexMode = 'FDD';
+        enb.NSubframe  = 0;
+        enb.NFrame     = 0;
+        enb.CyclicPrefix = 'Normal'; % 'Normal'/'Extended'
+    end
+
+    % === 2. Оценка и компенсация частотного смещения ===
+    % В простом варианте – используем известное статическое смещение,
+    % позже можно заменить на оценку по RS/PSS/SSS.
+    fOffCfg = evalin("base","SET_CHANNEL_DOPLER_OFFSET_HZ");
+    if ~isempty(fOffCfg) && fOffCfg ~= 0
+        n  = (0:numel(rxWaveform)-1).';
+        rxWaveform = rxWaveform .* exp(-1j*2*pi*fOffCfg*n/Fs);
+    end
+
+    % === 3. Грубая синхронизация по PSS/SSS (LTE Toolbox) ===
+    % % Для модели, где тайминг уже выровнен, можно пропустить.
+    % % Здесь оставим задел.
+    % [timingOffset, estCellID] = lteDLCellSearch(enb, rxWaveform);
+    % enb.NCellID = estCellID;
+    % rxWaveform  = rxWaveform(1+timingOffset:end,:);
+
+    % === 4. OFDM‑демодуляция и приём PBCH/MIB ===
+    % Подготовка сетки ресурсов на один субкадр (по умолчанию subframe 0)
+    rxGrid = lteOFDMDemodulate(enb, rxWaveform);
+
+    % PBCH располагается в субкадре 0, символы 0..3 слота 1, 4 слота 0/1 в 4×10мс.
+    % LTE Toolbox делает всё внутри ltePBCHDecode.
+    % Сначала выделяем индексы/символы PBCH:
+    pbchIndices = ltePBCHIndices(enb);
+    pbchRx      = rxGrid(pbchIndices);
+
+    % Оценка канала по RS для PBCH
+    cellRSIndices = lteCellRSIndices(enb,0);
+    cellRSSymbols = rxGrid(cellRSIndices);
+    % В простейшем варианте принимаем плоский канал Hsc (усреднённый по RS):
+    Hest = mean(cellRSSymbols);
+    pbchEq = pbchRx ./ (Hest + eps);
+
+    % Декодирование PBCH/MIB
+    [mibBits, ~, ~, pbchSymbols] = ltePBCHDecode(enb, pbchEq);
+
+    % Парсинг MIB в структуру enb (lteMIB умеет и encode, и decode)
+    enbFromMIB = lteMIB(mibBits);
+
+    % Обновляем ключевые поля конфигурации соты
+    enb.NDLRB        = enbFromMIB.NDLRB;
+    enb.Ng           = enbFromMIB.Ng;
+    enb.PHICHDuration = enbFromMIB.PHICHDuration;
+    enb.NFrame       = enbFromMIB.NFrame;
+
+    assignin("base","lte_mib_bits", mibBits);
+    assignin("base","enb_decoded", enb);
+
+    fprintf('\tMIB decoded: NDLRB=%d, NFrame=%d, Ng=%s, PHICH=%s\n', ...
+        enb.NDLRB, enb.NFrame, enb.Ng, enb.PHICHDuration);
+
+    % === 5. Измерения RSRP / RSSI ===
+    % RSRP – средняя мощность RS‑RE в ваттах/отсчёт. [web:6][web:15][web:31][web:34]
+    % RSSI – суммарная мощность по всем RE в полосе. [web:6][web:12][web:18][web:31]
+
+    % a) Снова формируем сетку для одного субкадра (на случай обновлённого enb)
+    rxGrid = lteOFDMDemodulate(enb, rxWaveform);
+
+    % Индексы RS для Cell‑specific RS (антипорт 0)
+    rsInd = lteCellRSIndices(enb,0);
+    rsSym = rxGrid(rsInd);
+
+    % RSRP в линейной шкале (усреднённая мощность RS‑символа)
+    rsrp_lin = mean(abs(rsSym).^2);
+
+    % RSSI: суммарная мощность по всем RE в одном субкадре
+    rssi_lin = mean(abs(rxGrid(:)).^2) * numel(rxGrid);
+
+    % RSRQ = N * RSRP / RSSI, N – число PRB. [web:6][web:18][web:31][web:34]
+    N_rb  = enb.NDLRB;
+    rsrq_lin = (N_rb * rsrp_lin) / max(rssi_lin, eps);
+    rsrq_lin = cast(rsrq_lin, "single");
+    % Перевод в dBm/dB (предполагаем, что масштаб rxWaveform уже в Вт или с нормировкой,
+    % при необходимости добавить референсный уровень)
+    rsrp_dB  = 10*log10(single(rsrp_lin) + eps);
+    rssi_dB  = 10*log10(rssi_lin + eps);
+    rsrq_dB  = 10*log10(rsrq_lin + eps);
+
+    meas = struct();
+    meas.RSRP_lin = rsrp_lin;
+    meas.RSSI_lin = rssi_lin;
+    meas.RSRQ_lin = rsrq_lin;
+    meas.RSRP_dB  = rsrp_dB;
+    meas.RSSI_dB  = rssi_dB;
+    meas.RSRQ_dB  = rsrq_dB;
+    meas.NDLRB    = N_rb;
+
+    assignin("base","lte_meas_rsrp_rssi_rsrq", meas);
+
+    fprintf('\tRSRP = %.2f dB, RSSI = %.2f dB, RSRQ = %.2f dB (NDLRB=%d)\n', ...
+        rsrp_dB, rssi_dB, rsrq_dB, N_rb);
 end

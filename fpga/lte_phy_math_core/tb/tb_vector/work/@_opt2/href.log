@@ -1,5 +1,5 @@
 BEGIN 3:CLOCK:fast__1:work
-    rst :  1:tb_vector_op:fast:work 1:vector_op:fast:work
-    clk :  1:tb_vector_op:fast:work 1:vector_op:fast:work
-    is_locked :  1:tb_vector_op:fast:work
+    clk :  1:vector_op:fast:work 1:tb_clock_gen:fast:work
+    is_locked :  1:tb_clock_gen:fast:work
+    rst :  1:vector_op:fast:work 1:tb_clock_gen:fast:work
 END 
