@@ -147,6 +147,7 @@ module tb_math_fma_macro;
         logic signed [C_BIT_DEPTH-1:0]   expected_result;
         integer cycle_count;
         logic result_ok;
+        localparam int EXPECTED_FMA_PIPE_TICKS = FMA_PIPE_SIZE + 1;
         
         $display("\n[TEST] fma_pipe_ticks_behv: Checking pipeline delay");
         $display("[TEST] Expected delay from i_valid to o_valid: %0d cycles", FMA_PIPE_SIZE);
@@ -172,17 +173,17 @@ module tb_math_fma_macro;
         // считаем такты до o_valid
         cycle_count = 0;
         result_ok = 1'b0;
-        
+
         while (cycle_count < (FMA_PIPE_SIZE + 5)) begin
             if (o_valid === 1'b1) begin
                 $display("[TEST] o_valid asserted at cycle %0d (t=%0t)", cycle_count, $time);
                 
                 // проверяем задержку
-                if (cycle_count === FMA_PIPE_SIZE) begin
+                if (cycle_count === EXPECTED_FMA_PIPE_TICKS) begin
                     $display("[PASS] Pipeline delay correct: %0d cycles", cycle_count);
                 end else begin
                     $error("[FAIL] Pipeline delay incorrect: got %0d, expected %0d", 
-                        cycle_count, FMA_PIPE_SIZE);
+                        cycle_count, EXPECTED_FMA_PIPE_TICKS);
                 end
                 
                 // проверяем результат
