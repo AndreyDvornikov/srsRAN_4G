@@ -73,7 +73,7 @@ module tb_math_fma_macro;
         end
         
         // проверяем mul_ff
-        if (dut_1.mul_ff !== '0) begin
+        if (dut_1.mul_ff[0] !== '0 || dut_1.mul_ff[1] !== '0) begin
             $error("[FAIL] mul_ff = %0d, expected 0", dut_1.mul_ff);
             error_found = 1'b1;
         end
