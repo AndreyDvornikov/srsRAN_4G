@@ -128,9 +128,10 @@ module math_mac_macro_tb;
     endtask
 
     task automatic mac_clear();
-        vif.cb.clr  <= '1;
+        vif.cb.clr <= 1'b1;                     
+        do tick_cb(); while (vif.cb.o_valid_mul !== 1'b1);
         tick_cb();
-        vif.cb.clr  <= '0;
+        vif.cb.clr <= 1'b0;
     endtask
 
     task automatic mac_expected(
@@ -144,7 +145,7 @@ module math_mac_macro_tb;
         if (vif.cb.o_c === $signed(expected)) begin 
             $display("[LOG-%0t][mac_expected:OK] expected val %0d", $time, expected);
         end else begin 
-            $error("[LOG-%0t][mac_expected:NOK] expected val %0d, but val %0d", $time, expected, $signed(expected));
+            $error("[LOG-%0t][mac_expected:NOK] expected val %0d, but val %0d", $time, expected, $signed(vif.cb.o_c));
         end 
     endtask
 
@@ -165,10 +166,8 @@ module math_mac_macro_tb;
         v1_verify_rst();
 
         push_mac(1,1);
-        repeat(10) tick_cb(); 
         mac_clear(); 
-        tick_cb(); // мы увидем ожидаемое значение на след такте
-        mac_expected(9);
+        mac_expected(1);
 
         tick_cb();
         tick_cb();
@@ -177,14 +176,14 @@ module math_mac_macro_tb;
         push_mac(9,10);
         push_mac(-10,-9);
         push_mac(-10,9);
+        tick_cb();  // просто внёс задержку
         push_mac(10,-14);
         mac_clear();
-        tick_cb(); // мы увидем ожидаемое значение на след такте
         mac_expected(0);
+
         push_mac(10, 5);
         push_mac(4,1);
         mac_clear();
-        tick_cb(); // мы увидем ожидаемое значение на след такте
         mac_expected(54);
         // подаём A = 10    B = 5;      C <= 50
         // подаём A = 9     B = 10;     C <= 140
