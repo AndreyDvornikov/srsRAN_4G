@@ -1,0 +1,12 @@
+
+bel_fft is a FFT co-processor written in Verilog that can calculate FFTs with arbitrary radix.
+It is a hardware implementation of the free software Kiss FFT („Keep it simple, Stupid!“)
+from Mark Borgerding. The target was to allow a simple replacement of the software code
+with the hardware implementation. Therefore bel_fft comes with a software driver that is
+compatible to the Kiss FFT routines.
+bel_fft also has a modular architecture and allows interfacing different bus architectures.
+So far Altera's Avalon bus as well as the Wishbone bus is supported. However, bel_fft's
+architecture allows an easy adaptation to further bus architectures (e.g. AMBA AHB).
+It comes with a Java wizard to configure the co-processor and to generate all
+required files (e.g. twiddle ROMs).
+bel_fft is distributed under the GNU Lesser Public License 2.1.

@@ -1,0 +1,31 @@
+
+0.8 - 2017/04/17
+Changed reset from asynchronous to synchronous
+Fix for FFTs larger than 2K words
+Update for Vivado 2016.4
+Example design with PCI-Express interface for the AC701 board
+with Linux driver and test program.
+Replaced previously delivered Vivado project with a script
+which generates the project.
+
+
+0.7 - 2013/12/11
+Bugfixes for AXI and Wishbone interface
+Support for Xilinx Vivado IP-Integrator
+Added additional AXI interface signals
+Register for user bus signals
+Example designs for Xilinx EDK and Vivado, connecting bel_fft
+to the ACP port of the Zynq processor system.
+
+
+0.6 - 2013/01/01
+Added AXI interface
+New target Xilinx
+Support for ISim and XSim
+butterfly2 implemented
+Support for Xilinx XPS
+Added example design for Xilinx Zynq device
+
+
+0.5 - 2012/02/12
+Initial Version
