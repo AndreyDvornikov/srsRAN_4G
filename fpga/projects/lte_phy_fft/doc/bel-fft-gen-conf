@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<belfft:bel xmlns:belfft="https://sourceforge.net/projects/belfft">
+  <belfft:modulename>lte_phy_fft</belfft:modulename>
+  <belfft:projectdir>C:\WorkPrograms\git-projects\srsRAN_4G\fpga\projects\lte_phy_fft</belfft:projectdir>
+  <belfft:datawidth>16</belfft:datawidth>
+  <belfft:interface>avalon</belfft:interface>
+  <belfft:masterbuswidth>32</belfft:masterbuswidth>
+  <belfft:configurations>
+    <belfft:configuration>
+      <belfft:size>128</belfft:size>
+      <belfft:inverse>false</belfft:inverse>
+      <belfft:twiddlefactorfile format="readmemh">C:\WorkPrograms\git-projects\srsRAN_4G\fpga\projects\lte_phy_fft\ip\lte_phy_fft_twiddle_rom0.dat</belfft:twiddlefactorfile>
+      <belfft:twiddlefactorfile format="mif">C:\WorkPrograms\git-projects\srsRAN_4G\fpga\projects\lte_phy_fft\ip\lte_phy_fft_twiddle_rom0.mif</belfft:twiddlefactorfile>
+      <belfft:twiddlefactorfile format="coe">C:\WorkPrograms\git-projects\srsRAN_4G\fpga\projects\lte_phy_fft\ip\lte_phy_fft_twiddle_rom0.coe</belfft:twiddlefactorfile>
+    </belfft:configuration>
+  </belfft:configurations>
+  <belfft:target>
+    <belfft:technology>Xilinx</belfft:technology>
+    <belfft:xilinx>
+      <belfft:designflow>None</belfft:designflow>
+      <belfft:twiddlerommodel>Generic</belfft:twiddlerommodel>
+      <belfft:coregenprojectfile>coregen.cgp</belfft:coregenprojectfile>
+      <belfft:generateroms>false</belfft:generateroms>
+    </belfft:xilinx>
+  </belfft:target>
+  <belfft:simulation>
+    <belfft:simulator>XSim</belfft:simulator>
+    <belfft:inputsignal>
+      <belfft:frequency>5</belfft:frequency>
+      <belfft:amplitude>10768</belfft:amplitude>
+      <belfft:phase>0</belfft:phase>
+    </belfft:inputsignal>
+    <belfft:inputsignal>
+      <belfft:frequency>32</belfft:frequency>
+      <belfft:amplitude>14000</belfft:amplitude>
+      <belfft:phase>0</belfft:phase>
+    </belfft:inputsignal>
+  </belfft:simulation>
+</belfft:bel>
+

@@ -1,8 +1,3 @@
-#!/bin/sh
-# the next line restarts using tclsh \
-exec tclsh "$0" "$@"
-
-#
 # view-results.tcl
 #
 #
@@ -164,6 +159,16 @@ proc bel_fft_run_gnuplot {} {
     exec gnuplot -p plot_output.scr
 }
 
+if {[file exists "output_data.dat"]} {
+    file delete "output_data.dat"
+}
+
+run all
+
+if {![file exists "output_data.dat"]} {
+    puts {ERROR: output_data.dat not found}
+    return 1
+}
 
 bel_fft_run_gnuplot
 

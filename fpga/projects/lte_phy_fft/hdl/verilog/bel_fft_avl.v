@@ -1,6 +1,6 @@
 ////////////////////////////////////////////////////////////////////
 //
-// bel_fft_axi.v
+// bel_fft_avl.v
 //
 //
 // This file is part of the "bel_fft" project
@@ -10,7 +10,7 @@
 //
 ////////////////////////////////////////////////////////////////////
 //
-// Copyright (C) 2012 - 2017 Authors
+// Copyright (C) 2010 - 2017 Authors
 //
 // This source file may be used and distributed without
 // restriction provided that this copyright statement is not
@@ -43,62 +43,28 @@
 
 
 `include "bel_fft_def.v"
-`include "bel_axi_def.v"
 
 
-module bel_fft_axi (
-        aclk,
-        aresetn,
+module bel_fft_avl (
+        clk_i,
+        rst_i,
 
-        m_arready,
-        m_arvalid,
-        m_araddr,
-        m_arprot,
-        m_arlen,
-        m_arsize,
-        m_arcache,
-        m_aruser,
-        m_arburst,
-        m_rready,
-        m_rvalid,
-        m_rdata,
-        m_rresp,
-        m_rlast,
-        m_awready,
-        m_awvalid,
-        m_awaddr,
-        m_awprot,
-        m_awsize,
-        m_awlen,
-        m_awcache,
-        m_awuser,
-        m_awburst,
-        m_wready,
-        m_wvalid,
-        m_wdata,
-        m_wstrb,
-        m_wlast,
-        m_bready,
-        m_bvalid,
-        m_bresp,
+        m_address,
+        m_readdata,
+        m_writedata,
+        m_read,
+        m_write,
+        m_waitrequest,
+        m_readdatavalid,
 
-        s_awaddr,
-        s_awvalid,
-        s_wdata,
-        s_wstrb,
-        s_wvalid,
-        s_bready,
-        s_araddr,
-        s_arvalid,
-        s_rready,
-        s_arready,
-        s_rdata,
-        s_rresp,
-        s_rvalid,
-        s_wready,
-        s_bresp,
-        s_bvalid,
-        s_awready,
+        s_address,
+        s_readdata,
+        s_writedata,
+        s_read,
+        s_write,
+        s_byteenable,
+        s_waitrequest,
+        s_readdatavalid,
 
         tw_adr,
         tw_rd,
@@ -106,12 +72,7 @@ module bel_fft_axi (
         tw_im,
         tw_cfg_sel,
 
-        event_o,
         int_o);
-
-    parameter C_S_AXI_ADDR_WIDTH = 7;
-    parameter C_M_AXI_DATA_WIDTH = 64;
-    parameter C_M_AXI_ADDR_WIDTH = 32;
 
     parameter word_width = 16;
     parameter config_num = 1;
@@ -123,59 +84,25 @@ module bel_fft_axi (
     parameter fft_size3 = 256;
     parameter has_butterfly2 = 1;
 
-    input aclk;
-    input aresetn;
+    input clk_i;
+    input rst_i;
 
-    input m_arready;
-    output m_arvalid;
-    output [C_M_AXI_ADDR_WIDTH - 1:0] m_araddr;
-    output [2:0] m_arprot;
-    output [7:0] m_arlen;
-    output [2:0] m_arsize;
-    output [3:0] m_arcache;
-    output [4:0] m_aruser;
-    output [1:0] m_arburst;
-    output m_rready;
-    input m_rvalid;
-    input [C_M_AXI_DATA_WIDTH - 1:0] m_rdata;
-    input [1:0] m_rresp;
-    input m_rlast;
-    input m_awready;
-    output m_awvalid;
-    output [C_M_AXI_ADDR_WIDTH - 1:0] m_awaddr;
-    output [2:0] m_awprot;
-    output [7:0] m_awlen;
-    output [2:0] m_awsize;
-    output [3:0] m_awcache;
-    output [4:0] m_awuser;
-    output [1:0] m_awburst;
-    input m_wready;
-    output m_wvalid;
-    output [C_M_AXI_DATA_WIDTH - 1:0] m_wdata;
-    output [C_M_AXI_DATA_WIDTH / 8 - 1:0] m_wstrb;
-    output m_wlast;
-    output m_bready;
-    input m_bvalid;
-    input [1:0] m_bresp;
+    output [`BEL_FFT_MIF_AWIDTH - 1:0] m_address;
+    input [`BEL_FFT_DWIDTH - 1:0] m_readdata;
+    output [`BEL_FFT_DWIDTH - 1:0] m_writedata;
+    output m_read;
+    output m_write;
+    input m_waitrequest;
+    input m_readdatavalid;
 
-    input [C_S_AXI_ADDR_WIDTH - 1:0] s_awaddr;
-    input s_awvalid;
-    input [`BEL_FFT_DWIDTH - 1:0] s_wdata;
-    input [`BEL_FFT_DWIDTH / 8 - 1:0] s_wstrb;
-    input s_wvalid;
-    input s_bready;
-    input [C_S_AXI_ADDR_WIDTH - 1:0] s_araddr;
-    input s_arvalid;
-    input s_rready;
-
-    output s_arready;
-    output [`BEL_FFT_DWIDTH - 1:0] s_rdata;
-    output [1:0] s_rresp;
-    output s_rvalid;
-    output s_wready;
-    output [1:0] s_bresp;
-    output s_bvalid;
-    output s_awready;
+    input [`BEL_FFT_SIF_AWIDTH - 1:0] s_address;
+    output [`BEL_FFT_DWIDTH - 1:0] s_readdata;
+    input [`BEL_FFT_DWIDTH - 1:0] s_writedata;
+    input s_read;
+    input s_write;
+    input [`BEL_FFT_BCNT - 1:0] s_byteenable;
+    output s_waitrequest;
+    output s_readdatavalid;
 
     output [twiddle_rom_max_awidth - 1:0] tw_adr;
     output tw_rd;
@@ -183,9 +110,9 @@ module bel_fft_axi (
     input [word_width - 1:0] tw_im;
     output [config_num - 1:0] tw_cfg_sel;
 
-    output event_o;
     output int_o;
 
+    wire event_o;
     wire [`BEL_FFT_AWIDTH-1:0] butterfly_generic_adr;
     wire [word_width-1:0] butterfly_generic_dat_re_i;
     wire [word_width-1:0] butterfly_generic_dat_re_o;
@@ -234,113 +161,143 @@ module bel_fft_axi (
     wire ctrl_ack;
     wire ctrl_err;
     wire [`BEL_FFT_BCNT-1:0] ctrl_bsel;
-
     wire [`BEL_FFT_DWIDTH-1:0] user;
 
 
-    bel_fft_axi_mif #(
-            .word_width (word_width),
-            .addr_width (C_M_AXI_ADDR_WIDTH))
-            u_mif (
-            .m_aclk (aclk),
-            .m_aresetn (aresetn),
-            .m_arready (m_arready),
-            .m_arvalid (m_arvalid),
-            .m_araddr (m_araddr),
-            .m_arprot (m_arprot),
-            .m_arlen (m_arlen),
-            .m_arsize (m_arsize),
-            .m_arcache (m_arcache),
-            .m_aruser (m_aruser),
-            .m_arburst (m_arburst),
-            .m_rready (m_rready),
-            .m_rvalid (m_rvalid),
-            .m_rdata (m_rdata),
-            .m_rresp (m_rresp),
-            .m_rlast (m_rlast),
-            .m_awready (m_awready),
-            .m_awvalid (m_awvalid),
-            .m_awaddr (m_awaddr),
-            .m_awprot (m_awprot),
-            .m_awsize (m_awsize),
-            .m_awlen (m_awlen),
-            .m_awcache (m_awcache),
-            .m_awuser (m_awuser),
-            .m_awburst (m_awburst),
-            .m_wready (m_wready),
-            .m_wvalid (m_wvalid),
-            .m_wdata (m_wdata),
-            .m_wstrb (m_wstrb),
-            .m_wlast (m_wlast),
-            .m_bready (m_bready),
-            .m_bvalid (m_bvalid),
-            .m_bresp (m_bresp),
+    generate
+        if (word_width == 16) begin
 
-            .adr0_i (butterfly4_adr),
-            .dat_re0_i (butterfly4_dat_re_o),
-            .dat_re0_o (butterfly4_dat_re_i),
-            .dat_im0_i (butterfly4_dat_im_o),
-            .dat_im0_o (butterfly4_dat_im_i),
-            .wr0_i (butterfly4_wr),
-            .rd0_i (butterfly4_rd),
-            .ack0_o (butterfly4_ack),
-            .err0_o (butterfly4_err),
+            bel_fft_avl_mif_16 #(
+                    .word_width (word_width))
+                    u_mif (
+                    .clk_i (clk_i),
+                    .rst_i (rst_i),
 
-            .adr1_i (copy_adr),
-            .dat_re1_i (copy_dat_re_o),
-            .dat_re1_o (copy_dat_re_i),
-            .dat_im1_i (copy_dat_im_o),
-            .dat_im1_o (copy_dat_im_i),
-            .wr1_i (copy_wr),
-            .rd1_i (copy_rd),
-            .ack1_o (copy_ack),
-            .err1_o (copy_err),
+                    .address (m_address),
+                    .readdata (m_readdata),
+                    .writedata (m_writedata),
+                    .read (m_read),
+                    .write (m_write),
+                    .waitrequest (m_waitrequest),
+                    .readdatavalid (m_readdatavalid),
 
-            .adr2_i (butterfly2_adr),
-            .dat_re2_i (butterfly2_dat_re_o),
-            .dat_re2_o (butterfly2_dat_re_i),
-            .dat_im2_i (butterfly2_dat_im_o),
-            .dat_im2_o (butterfly2_dat_im_i),
-            .wr2_i (butterfly2_wr),
-            .rd2_i (butterfly2_rd),
-            .ack2_o (butterfly2_ack),
-            .err2_o (butterfly2_err),
+                    .adr0_i (butterfly4_adr),
+                    .dat_re0_i (butterfly4_dat_re_o),
+                    .dat_re0_o (butterfly4_dat_re_i),
+                    .dat_im0_i (butterfly4_dat_im_o),
+                    .dat_im0_o (butterfly4_dat_im_i),
+                    .wr0_i (butterfly4_wr),
+                    .rd0_i (butterfly4_rd),
+                    .ack0_o (butterfly4_ack),
+                    .err0_o (butterfly4_err),
 
-            .adr3_i (butterfly_generic_adr),
-            .dat_re3_i (butterfly_generic_dat_re_o),
-            .dat_re3_o (butterfly_generic_dat_re_i),
-            .dat_im3_i (butterfly_generic_dat_im_o),
-            .dat_im3_o (butterfly_generic_dat_im_i),
-            .wr3_i (butterfly_generic_wr),
-            .rd3_i (butterfly_generic_rd),
-            .ack3_o (butterfly_generic_ack),
-            .err3_o (butterfly_generic_err),
+                    .adr1_i (copy_adr),
+                    .dat_re1_i (copy_dat_re_o),
+                    .dat_re1_o (copy_dat_re_i),
+                    .dat_im1_i (copy_dat_im_o),
+                    .dat_im1_o (copy_dat_im_i),
+                    .wr1_i (copy_wr),
+                    .rd1_i (copy_rd),
+                    .ack1_o (copy_ack),
+                    .err1_o (copy_err),
 
-            .user_i (user));
+                    .adr2_i (butterfly2_adr),
+                    .dat_re2_i (butterfly2_dat_re_o),
+                    .dat_re2_o (butterfly2_dat_re_i),
+                    .dat_im2_i (butterfly2_dat_im_o),
+                    .dat_im2_o (butterfly2_dat_im_i),
+                    .wr2_i (butterfly2_wr),
+                    .rd2_i (butterfly2_rd),
+                    .ack2_o (butterfly2_ack),
+                    .err2_o (butterfly2_err),
+
+                    .adr3_i (butterfly_generic_adr),
+                    .dat_re3_i (butterfly_generic_dat_re_o),
+                    .dat_re3_o (butterfly_generic_dat_re_i),
+                    .dat_im3_i (butterfly_generic_dat_im_o),
+                    .dat_im3_o (butterfly_generic_dat_im_i),
+                    .wr3_i (butterfly_generic_wr),
+                    .rd3_i (butterfly_generic_rd),
+                    .ack3_o (butterfly_generic_ack),
+                    .err3_o (butterfly_generic_err),
+
+                    .user_i (user));
 
 
-    bel_fft_axi_sif #(
-            .C_S_AXI_ADDR_WIDTH (C_S_AXI_ADDR_WIDTH))
-            u_sif (
-            .s_aclk (aclk),
-            .s_aresetn (aresetn),
-            .s_awaddr (s_awaddr),
-            .s_awvalid (s_awvalid),
-            .s_wdata (s_wdata),
-            .s_wstrb (s_wstrb),
-            .s_wvalid (s_wvalid),
-            .s_bready (s_bready),
-            .s_araddr (s_araddr),
-            .s_arvalid (s_arvalid),
-            .s_rready (s_rready),
-            .s_arready (s_arready),
-            .s_rdata (s_rdata),
-            .s_rresp (s_rresp),
-            .s_rvalid (s_rvalid),
-            .s_wready (s_wready),
-            .s_bresp (s_bresp),
-            .s_bvalid (s_bvalid),
-            .s_awready (s_awready),
+        end
+
+        if (word_width == 32) begin
+            bel_fft_avl_mif_32 #(
+                    .word_width (word_width))
+                    u_mif (
+                    .clk_i (clk_i),
+                    .rst_i (rst_i),
+
+                    .address (m_address),
+                    .readdata (m_readdata),
+                    .writedata (m_writedata),
+                    .read (m_read),
+                    .write (m_write),
+                    .waitrequest (m_waitrequest),
+                    .readdatavalid (m_readdatavalid),
+
+                    .adr0_i (butterfly4_adr),
+                    .dat_re0_i (butterfly4_dat_re_o),
+                    .dat_re0_o (butterfly4_dat_re_i),
+                    .dat_im0_i (butterfly4_dat_im_o),
+                    .dat_im0_o (butterfly4_dat_im_i),
+                    .wr0_i (butterfly4_wr),
+                    .rd0_i (butterfly4_rd),
+                    .ack0_o (butterfly4_ack),
+                    .err0_o (butterfly4_err),
+
+                    .adr1_i (copy_adr),
+                    .dat_re1_i (copy_dat_re_o),
+                    .dat_re1_o (copy_dat_re_i),
+                    .dat_im1_i (copy_dat_im_o),
+                    .dat_im1_o (copy_dat_im_i),
+                    .wr1_i (copy_wr),
+                    .rd1_i (copy_rd),
+                    .ack1_o (copy_ack),
+                    .err1_o (copy_err),
+
+                    .adr2_i (butterfly2_adr),
+                    .dat_re2_i (butterfly2_dat_re_o),
+                    .dat_re2_o (butterfly2_dat_re_i),
+                    .dat_im2_i (butterfly2_dat_im_o),
+                    .dat_im2_o (butterfly2_dat_im_i),
+                    .wr2_i (butterfly2_wr),
+                    .rd2_i (butterfly2_rd),
+                    .ack2_o (butterfly2_ack),
+                    .err2_o (butterfly2_err),
+
+                    .adr3_i (butterfly_generic_adr),
+                    .dat_re3_i (butterfly_generic_dat_re_o),
+                    .dat_re3_o (butterfly_generic_dat_re_i),
+                    .dat_im3_i (butterfly_generic_dat_im_o),
+                    .dat_im3_o (butterfly_generic_dat_im_i),
+                    .wr3_i (butterfly_generic_wr),
+                    .rd3_i (butterfly_generic_rd),
+                    .ack3_o (butterfly_generic_ack),
+                    .err3_o (butterfly_generic_err),
+
+                    .user_i (user));
+        end
+    endgenerate
+
+
+    bel_fft_avl_sif u_sif (
+            .clk_i (clk_i),
+            .rst_i (rst_i),
+
+            .address (s_address),
+            .readdata (s_readdata),
+            .writedata (s_writedata),
+            .read (s_read),
+            .write (s_write),
+            .byteenable (s_byteenable),
+            .waitrequest (s_waitrequest),
+            .readdatavalid (s_readdatavalid),
 
             .adr_o (ctrl_adr),
             .dat_i (ctrl_dat_o),
@@ -363,8 +320,8 @@ module bel_fft_axi (
             .fft_size3 (fft_size3),
             .has_butterfly2 (has_butterfly2))
             u_core (
-            .clk_i (aclk),
-            .rst_i (~aresetn),
+            .clk_i (clk_i),
+            .rst_i (rst_i),
 
             .butterfly_generic_adr_o (butterfly_generic_adr),
             .butterfly_generic_dat_re_i (butterfly_generic_dat_re_i),
@@ -425,5 +382,6 @@ module bel_fft_axi (
             .int_o (int_o),
 
             .user_o (user));
+
 
 endmodule

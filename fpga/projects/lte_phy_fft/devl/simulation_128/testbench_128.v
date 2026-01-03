@@ -10,7 +10,7 @@
 //
 ////////////////////////////////////////////////////////////////////
 //
-// Copyright (C) 2012-2014 Authors
+// Copyright (C) 2010-2012 Authors
 //
 // This source file may be used and distributed without
 // restriction provided that this copyright statement is not
@@ -43,9 +43,6 @@
 
 
 `include "bel_fft_def.v"
-`include "bel_axi_def.v"
-
-// `timescale 1ns/1ps
 
 
 module testbench_128;
@@ -55,164 +52,95 @@ module testbench_128;
     parameter inverse = 0;
     parameter word_width = 16;
     parameter ram_awidth = 7;
-    parameter C_S_AXI_ADDR_WIDTH = 12;
-    parameter C_M_AXI_DATA_WIDTH = 16 * 2;
 
-    reg aclk;
-    reg aresetn;
 
-    reg [C_S_AXI_ADDR_WIDTH - 1:0] s_awaddr;
-    reg s_awvalid;
-    reg [`BEL_FFT_DWIDTH - 1:0] s_wdata;
-    reg [`BEL_FFT_DWIDTH / 8 - 1:0] s_wstrb;
-    reg s_wvalid;
-    reg s_bready;
-    reg [C_S_AXI_ADDR_WIDTH - 1:0] s_araddr;
-    reg s_arvalid;
-    reg s_rready;
+    reg clk;
+    reg rst;
 
-    wire s_arready;
-    wire [`BEL_FFT_DWIDTH - 1:0] s_rdata;
-    wire [1:0] s_rresp;
-    wire s_rvalid;
-    wire s_wready;
-    wire [1:0] s_bresp;
-    wire s_bvalid;
-    wire s_awready;
+    wire [`BEL_FFT_MIF_AWIDTH - 1:0] m_address;
+    wire [`BEL_FFT_DWIDTH - 1:0] m_readdata;
+    wire [`BEL_FFT_DWIDTH - 1:0] src_m_readdata;
+    wire [`BEL_FFT_DWIDTH - 1:0] dst_m_readdata;
+    wire [`BEL_FFT_DWIDTH - 1:0] m_writedata;
+    wire m_read;
+    wire src_m_read;
+    wire dst_m_read;
+    wire m_write;
+    wire src_m_write;
+    wire dst_m_write;
+    wire m_waitrequest;
+    wire m_readdatavalid;
+    wire src_m_readdatavalid;
+    wire dst_m_readdatavalid;
 
-    wire m_arvalid;
-    wire src_m_arvalid;
-    wire dst_m_arvalid;
-    wire m_arready;
-    wire src_m_arready;
-    wire dst_m_arready;
+    reg [`BEL_FFT_SIF_AWIDTH - 1:0] s_address;
+    wire [`BEL_FFT_DWIDTH - 1:0] s_readdata;
+    reg [`BEL_FFT_DWIDTH - 1:0] s_writedata;
+    reg s_read;
+    reg s_write;
+    reg [`BEL_FFT_BCNT - 1:0] s_byteenable;
+    wire s_waitrequest;
+    wire s_readdatavalid;
 
-    wire [`BEL_FFT_AWIDTH - 1:0] m_araddr;
-    wire [2:0] m_arprot;
-    wire [7:0] m_arlen;
-    wire [2:0] m_arsize;
-    wire [3:0] m_arcache;
-    wire [4:0] m_aruser;
-    wire [1:0] m_arburst;
-    wire m_rready;
-    wire m_rvalid;
-    wire src_m_rvalid;
-    wire dst_m_rvalid;
-    wire [C_M_AXI_DATA_WIDTH - 1:0] m_rdata;
-    wire [C_M_AXI_DATA_WIDTH - 1:0] src_m_rdata;
-    wire [C_M_AXI_DATA_WIDTH - 1:0] dst_m_rdata;
-    wire [1:0] m_rresp;
-    wire [1:0] src_m_rresp;
-    wire [1:0] dst_m_rresp;
-    wire m_rlast;
-    wire m_awready;
-    wire src_m_awready;
-    wire dst_m_awready;
-    wire m_awvalid;
-    wire src_m_awvalid;
-    wire dst_m_awvalid;
-    wire [`BEL_FFT_AWIDTH - 1:0] m_awaddr;
-    wire [2:0] m_awprot;
-    wire [7:0] m_awlen;
-    wire [2:0] m_awsize;
-    wire [3:0] m_awcache;
-    wire [4:0] m_awuser;
-    wire [1:0] m_awburst;
-    wire m_wready;
-    wire src_m_wready;
-    wire dst_m_wready;
-    wire m_wvalid;
-    wire src_m_wvalid;
-    wire dst_m_wvalid;
-    wire [C_M_AXI_DATA_WIDTH - 1:0] m_wdata;
-    wire [C_M_AXI_DATA_WIDTH / 8 - 1:0] m_wstrb;
-    wire m_wlast;
-    wire m_bready;
-    wire m_bvalid;
-    wire src_m_bvalid;
-    wire dst_m_bvalid;
-    wire [1:0] m_bresp;
-    wire [1:0] src_m_bresp;
-    wire [1:0] dst_m_bresp;
-
-    wire event_o;
     wire int;
 
-    reg last_dat_sel;
     reg dat_sel;
-    wire src_raddr_sel;   
-    wire dst_raddr_sel;   
-    wire src_waddr_sel;   
-    wire dst_waddr_sel;   
    
    
     task idleCycle;
         input [31:0] cycle_count;
         begin
             #1
-            s_araddr = 0;
-            s_awaddr = 0;
-            s_wdata = 0;
-            s_wstrb = 0;
-            s_arvalid = 1'b0;
-            s_awvalid = 1'b0;
-            s_wvalid = 1'b0;
-            s_rready = 1'b0;
-            s_bready = 1'b0;
+            s_address = 0;
+            s_writedata = 0;
+            s_byteenable = 4'b0000;
+            s_write = 1'b0;
+            s_read = 1'b0;
             repeat (cycle_count)
-                @(posedge aclk);
+                @(posedge clk);
         end
     endtask
 
     
     task writeRegister;
-        input [C_S_AXI_ADDR_WIDTH - 1:0] address;
+        input [`BEL_FFT_SIF_AWIDTH - 1:0] address;
         input [`BEL_FFT_DWIDTH - 1:0] data;
         begin
             #1 
-            s_awaddr = address << 2;
-            s_wdata = data;
-            s_wstrb = 4'b1111;
-            s_awvalid = 1'b1;
-            s_wvalid = 1'b1;
-            s_bready = 1'b1;
-            @(posedge aclk);
-            while ((s_awready == 1'b0) && (s_wready == 1'b0))
-                @(posedge aclk);
-            #1 
-            s_awvalid = 1'b0;
-            s_wvalid = 1'b0;
-            s_awaddr = 0;
-            s_wdata = 0;
-            s_wstrb = 4'b0000;
-            @(posedge aclk);
-            while (s_bvalid == 1'b0)
-                @(posedge aclk);
-            #1 
-            s_bready = 1'b0;
-            @(posedge aclk);
+            s_address = address;
+            s_writedata = data;
+            s_byteenable = 4'b1111;
+            s_write = 1'b1;
+            @(posedge clk);
+            while (s_waitrequest == 1'b1)
+                @(posedge clk);
+            #1
+            s_address = 0;
+            s_writedata = 0;
+            s_byteenable = 4'b0000;
+            s_write = 1'b0;
+            @(posedge clk);
         end
     endtask // input
 
 
     task readRegister;
-        input [C_S_AXI_ADDR_WIDTH - 1:0] address;
+        input [`BEL_FFT_SIF_AWIDTH - 1:0] address;
         begin
             #1 
-            s_araddr = address << 2;
-            s_arvalid = 1'b1;
-            s_rready = 1'b1;
-            @(posedge aclk);
-            while (s_arready == 1'b0)
-                @(posedge aclk);
-            #1 
-            s_araddr = 0;
-            s_arvalid = 1'b0;
-            while (s_rvalid == 1'b0)
-                @(posedge aclk);
-            #1 
-            s_rready = 1'b0;
-            @(posedge aclk);
+            s_address = address;
+            s_byteenable = 4'b1111;
+            s_read = 1'b1;
+            @(posedge clk);
+            while (s_waitrequest == 1'b1)
+                @(posedge clk);
+            #1
+            s_address = 0;
+            s_byteenable = 4'b0000;
+            s_read = 1'b0;
+            while (s_readdatavalid == 1'b0)
+                @(posedge clk);
+            @(posedge clk);
         end
     endtask // input
 
@@ -225,34 +153,34 @@ module testbench_128;
     
     
     initial begin
-        aresetn = 1'b0;
-        #80 aresetn = 1'b1;
+        rst = 1'b1;
+        #20 rst = 1'b0;
     end
     
 
     initial begin
-        aclk = 1'b0;
+        clk = 1'b0;
     end
     
 
     always begin
-        #10 aclk = 1'b1;
-        #10 aclk = 1'b0;
+        #10 clk = 1'b1;
+        #10 clk = 1'b0;
     end
 
 
     initial begin
-        idleCycle (10);
+        idleCycle (4);
+        // u_OutputRam.open_logfile;
 
         writeRegister (`BEL_FFT_SIZE_REG_ADDR, fft_size);
 
-        // The input data is located at one time the size of the input data.
-        // It is not located at 0, because this is the default address.
-        // finadr = FFT size * number of 32 bit word for a complex number
+        // The input data is located t address 0.
+        // finadr = 0
         writeRegister (`BEL_FFT_SOURCE_REG_ADDR, fft_size * (word_width * 2 / `BEL_FFT_DWIDTH * `BEL_FFT_BCNT));
 
-        // Write the resulting data above the input data (2 * FFT size * number of bytes per complex value)
-        // foutadr = 2 * FFT size * number of 32 bit word for a complex number
+        // Write the resulting data above the input data (FFT size * number of bytes per complex value)
+        // foutadr = FFT size * number of 32 bit word for a complex number
         writeRegister (`BEL_FFT_DEST_REG_ADDR, 2 * fft_size * (word_width * 2 / `BEL_FFT_DWIDTH * `BEL_FFT_BCNT));
 
         // p[0] = 0004, m[0] = 0020
@@ -275,10 +203,6 @@ module testbench_128;
 
         readRegister (`BEL_FFT_FACTORS_REG_ADDR + 3);
 
-
-        writeRegister (`BEL_FFT_USER_REG_ADDR, 32'h0F010F01);
-
-
         // start + enable interrupt
         writeRegister (`BEL_FFT_CONTROL_REG_ADDR, inverse * 65536 + 257);
 
@@ -291,6 +215,7 @@ module testbench_128;
 
         idleCycle (1);
 
+        // u_OutputRam.close_logfile;
         u_OutputRam.dump;
         $finish;
     end
@@ -303,196 +228,73 @@ module testbench_128;
     end
 
 
-    assign src_raddr_sel = (m_araddr[ram_awidth + 2 +
-            (word_width * 2 / `BEL_FFT_DWIDTH):ram_awidth + 1 +
-            (word_width * 2 / `BEL_FFT_DWIDTH)] == 2'b01);
-    assign dst_raddr_sel = (m_araddr[ram_awidth + 2 +
-            (word_width * 2 / `BEL_FFT_DWIDTH):ram_awidth + 1 +
-            (word_width * 2 / `BEL_FFT_DWIDTH)] == 2'b10);
-    assign src_waddr_sel = (m_awaddr[ram_awidth + 2 +
-            (word_width * 2 / `BEL_FFT_DWIDTH):ram_awidth + 1 +
-            (word_width * 2 / `BEL_FFT_DWIDTH)] == 2'b01);
-    assign dst_waddr_sel = (m_awaddr[ram_awidth + 2 +
-            (word_width * 2 / `BEL_FFT_DWIDTH):ram_awidth + 1 +
-            (word_width * 2 / `BEL_FFT_DWIDTH)] == 2'b10);
-
-
-    always @(posedge aclk or negedge aresetn) begin
-        if (aresetn == 1'b0) begin
-           last_dat_sel <= 1'b0;
+    always @(posedge clk or posedge rst) begin
+        if (rst == 1'b1) begin
+           dat_sel <= 1'b0;
         end else begin
-            if ((m_arvalid && dst_raddr_sel) || 
-                    (m_awvalid  && dst_waddr_sel)) begin
-                last_dat_sel <= 1'b1;
-            end else begin
-                if ((m_arvalid && src_raddr_sel) || 
-                        (m_awvalid && src_waddr_sel)) begin
-                    last_dat_sel <= 1'b0;
+            if (m_read | m_write) begin
+                if (m_address[ram_awidth + 3:ram_awidth + 2] == 2'b10) begin
+                    dat_sel <= 1'b1;
+                end else begin
+                    dat_sel <= 1'b0;
                 end
             end
         end
     end
 
-
-    always @(m_arvalid or m_awvalid or dst_waddr_sel or dst_raddr_sel or
-            src_waddr_sel or src_raddr_sel or last_dat_sel) begin
-        if ((m_arvalid && dst_raddr_sel) || 
-                    (m_awvalid  && dst_waddr_sel)) begin
-                dat_sel = 1'b1;
-        end else begin
-            if ((m_arvalid && src_raddr_sel) || 
-                    (m_awvalid && src_waddr_sel)) begin
-                dat_sel = 1'b0;
-            end else begin
-                dat_sel = last_dat_sel;
-            end
-        end
-    end
+    assign src_m_read = (m_address[ram_awidth + 3:ram_awidth + 2] == 2'b01) ? m_read : 1'b0;
+    assign dst_m_read = (m_address[ram_awidth + 3:ram_awidth + 2] == 2'b10) ? m_read : 1'b0;
+    assign src_m_write = (m_address[ram_awidth + 3:ram_awidth + 2] == 2'b01) ? m_write : 1'b0;
+    assign dst_m_write = (m_address[ram_awidth + 3:ram_awidth + 2] == 2'b10) ? m_write : 1'b0;
+    assign m_readdata = dat_sel ? dst_m_readdata : src_m_readdata;
+    assign m_readdatavalid = dat_sel ? dst_m_readdatavalid : src_m_readdatavalid;
+    assign m_waitrequest = 1'b0;
 
 
-    assign src_m_arvalid = (src_raddr_sel) ? m_arvalid : 1'b0;
-    assign dst_m_arvalid = (dst_raddr_sel) ? m_arvalid : 1'b0;
-    assign src_m_awvalid = (src_waddr_sel) ? m_awvalid : 1'b0;
-    assign dst_m_awvalid = (dst_waddr_sel) ? m_awvalid : 1'b0;
-
-    assign src_m_wvalid = (src_waddr_sel) ? m_wvalid : 1'b0;
-    assign dst_m_wvalid = (dst_waddr_sel) ? m_wvalid : 1'b0;
-
-    assign m_rdata = dat_sel ? dst_m_rdata : src_m_rdata;
-    assign m_rresp = dat_sel ? dst_m_rresp : src_m_rresp;
-    assign m_bresp = dat_sel ? dst_m_bresp : src_m_bresp;
-    assign m_wready = dat_sel ? dst_m_wready : src_m_wready;
-
-    assign m_arready = src_m_arready | dst_m_arready;
-    assign m_awready = src_m_awready | dst_m_awready;
-
-    assign m_bvalid = src_m_bvalid | dst_m_bvalid;
-    assign m_rvalid = src_m_rvalid | dst_m_rvalid;
-
-    assign m_rlast = 1'b1;
+    bel_avl_ram #(fft_size * word_width * 2 / `BEL_FFT_DWIDTH, ram_awidth,
+            input_file_name, "/dev/null", "input_ram.log") u_InputRam (
+            .clk_i (clk),
+            .rst_i (rst),
+            .address (m_address[ram_awidth + 1:2]),
+            .readdata (src_m_readdata),
+            .writedata (m_writedata),
+            .read (src_m_read),
+            .write (src_m_write),
+            .readdatavalid (src_m_readdatavalid));
 
 
-    bel_axi_ram #(
-            .size (fft_size * word_width * 2 / C_M_AXI_DATA_WIDTH),
-            .adr_width (ram_awidth + 3),
-            .data_width (C_M_AXI_DATA_WIDTH),
-            .input_file_name (input_file_name),
-            .output_file_name ("/dev/null"))
-        u_InputRam (
-            .s_aclk (aclk),
-            .s_aresetn (aresetn),
-            .s_awaddr (m_awaddr[ram_awidth + 2:0]),
-            .s_awvalid (src_m_awvalid),
-            .s_awlen (m_awlen),
-            .s_awsize (m_awsize),
-            .s_wdata (m_wdata),
-            .s_wstrb (m_wstrb),
-            .s_wvalid (src_m_wvalid),
-            .s_bready (m_bready),
-            .s_araddr (m_araddr[ram_awidth + 2:0]),
-            .s_arvalid (src_m_arvalid),
-            .s_arlen (m_arlen),
-            .s_arsize (m_arsize),
-            .s_rready (m_rready),
-            .s_arready (src_m_arready),
-            .s_rdata (src_m_rdata),
-            .s_rresp (src_m_rresp),
-            .s_rvalid (src_m_rvalid),
-            .s_wready (src_m_wready),
-            .s_bresp (src_m_bresp),
-            .s_bvalid (src_m_bvalid),
-            .s_awready (src_m_awready));
-
-
-    bel_axi_ram #(
-            .size (fft_size * word_width * 2 / C_M_AXI_DATA_WIDTH),
-            .adr_width (ram_awidth + 3),
-            .data_width (C_M_AXI_DATA_WIDTH),
-            .input_file_name (""),
-            .output_file_name ("output_data.dat"))
-        u_OutputRam (
-            .s_aclk (aclk),
-            .s_aresetn (aresetn),
-            .s_awaddr (m_awaddr[ram_awidth + 2:0]),
-            .s_awvalid (dst_m_awvalid),
-            .s_awlen (m_awlen),
-            .s_awsize (m_awsize),
-            .s_wdata (m_wdata),
-            .s_wstrb (m_wstrb),
-            .s_wvalid (dst_m_wvalid),
-            .s_bready (m_bready),
-            .s_araddr (m_araddr[ram_awidth + 2:0]),
-            .s_arvalid (dst_m_arvalid),
-            .s_arlen (m_arlen),
-            .s_arsize (m_arsize),
-            .s_rready (m_rready),
-            .s_arready (dst_m_arready),
-            .s_rdata (dst_m_rdata),
-            .s_rresp (dst_m_rresp),
-            .s_rvalid (dst_m_rvalid),
-            .s_wready (dst_m_wready),
-            .s_bresp (dst_m_bresp),
-            .s_bvalid (dst_m_bvalid),
-            .s_awready (dst_m_awready));
+    bel_avl_ram #(fft_size * (word_width * 2 / `BEL_FFT_DWIDTH), ram_awidth,
+            "", "output_data.dat", "output_ram.log") u_OutputRam (
+            .clk_i (clk),
+            .rst_i (rst),
+            .address (m_address[ram_awidth + 1:2]),
+            .readdata (dst_m_readdata),
+            .writedata (m_writedata),
+            .read (dst_m_read),
+            .write (dst_m_write),
+            .readdatavalid (dst_m_readdatavalid));
 
     
     lte_phy_fft u_fft (
-            .m_aclk (aclk),
-            .m_aresetn (aresetn),
-            .m_arready (m_arready),
-            .m_arvalid (m_arvalid),
-            .m_araddr (m_araddr),
-            .m_arprot (m_arprot),
-            .m_arlen (m_arlen),
-            .m_arsize (m_arsize),
-            .m_arcache (m_arcache),
-            .m_aruser (m_aruser),
-            .m_arburst (m_arburst),
-            .m_rready (m_rready),
-            .m_rvalid (m_rvalid),
-            .m_rdata (m_rdata),
-            .m_rresp (m_rresp),
-            .m_rlast (m_rlast),
-            .m_awready (m_awready),
-            .m_awvalid (m_awvalid),
-            .m_awaddr (m_awaddr),
-            .m_awprot (m_awprot),
-            .m_awsize (m_awsize),
-            .m_awlen (m_awlen),
-            .m_awcache (m_awcache),
-            .m_awuser (m_awuser),
-            .m_awburst (m_awburst),
-            .m_wready (m_wready),
-            .m_wvalid (m_wvalid),
-            .m_wdata (m_wdata),
-            .m_wstrb (m_wstrb),
-            .m_wlast (m_wlast),
-            .m_bready (m_bready),
-            .m_bvalid (m_bvalid),
-            .m_bresp (m_bresp),
-
-            .s_aclk (aclk),
-            .s_aresetn (aresetn),
-            .s_awaddr (s_awaddr),
-            .s_awvalid (s_awvalid),
-            .s_wdata (s_wdata),
-            .s_wstrb (s_wstrb),
-            .s_wvalid (s_wvalid),
-            .s_bready (s_bready),
-            .s_araddr (s_araddr),
-            .s_arvalid (s_arvalid),
-            .s_rready (s_rready),
-            .s_arready (s_arready),
-            .s_rdata (s_rdata),
-            .s_rresp (s_rresp),
-            .s_rvalid (s_rvalid),
-            .s_wready (s_wready),
-            .s_bresp (s_bresp),
-            .s_bvalid (s_bvalid),
-            .s_awready (s_awready),
-
-            .event_o (event_o),
+            .clk_i (clk),
+            .rst_i (rst),
+            .m_address (m_address),
+            .m_readdata (m_readdata),
+            .m_writedata (m_writedata),
+            .m_read (m_read),
+            .m_write (m_write),
+            .m_waitrequest (m_waitrequest),
+            .m_readdatavalid (m_readdatavalid),
+            .s_address (s_address),
+            .s_readdata (s_readdata),
+            .s_writedata (s_writedata),
+            .s_read (s_read),
+            .s_write (s_write),
+            .s_byteenable (s_byteenable),
+            .s_waitrequest (s_waitrequest),
+            .s_readdatavalid (s_readdatavalid),
             .int_o (int));
 
+ 
 endmodule
 

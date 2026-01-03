@@ -1,0 +1,26 @@
+# Vivado project files
+/vivado/lte_phy_fft.*/**
+/vivado/lte_phy_fft.xpr
+
+# Devl sim things
+# sim lib
+/devl/simulation_128/xsim.dir
+
+# sim log
+/devl/**/*.log
+
+# sim pb
+/devl/**/*.pb
+
+# sim jou
+/devl/**/*.jou
+
+# vivado tmp
+.Xil
+/devl/**/vivado_*.str
+/devl/**/*.testbench_128.wdb
+
+# sim memfile duplication
+/devl/**/lte_phy_fft_twiddle_rom0.dat
+/devl/**/lte_phy_fft_twiddle_rom0.mif
+/devl/**/output_data.dat
