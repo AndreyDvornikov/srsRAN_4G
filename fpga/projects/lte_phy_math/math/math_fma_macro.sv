@@ -25,12 +25,17 @@
 
 `timescale 1ns/1ps
 
+`define SIGN_SUM(A,B) \
+    $signed(A) + $signed(B)
+
+`define SIGN_MUL(A,B) \
+    $signed(A) * $signed(B)
 module math_fma_macro #(
     parameter int A_WIDTH   = 16,
     parameter int B_WIDTH   = 16,
     parameter int C_WIDTH   = 64,
     parameter int F_WIDTH   = C_WIDTH,
-    // не должен быть 0
+    // не должен быть < 1
     parameter int PIPE      = 1,
     // возможный размер переменной после перемножения
     localparam int AB_WIDTH = A_WIDTH + B_WIDTH
@@ -123,10 +128,10 @@ module math_fma_macro #(
             c_ff        <= pipe_c[PIPE - 1];
 
             // Исправляем ту самую задержку
-            mul_ff[0]   <= $signed(pipe_a[PIPE - 1]) * $signed(pipe_b[PIPE - 1]);
+            mul_ff[0]   <= `SIGN_MUL(pipe_a[PIPE - 1], pipe_b[PIPE - 1]);
             mul_ff[1]   <= mul_ff[0];
 
-            res_ff      <= $signed(mul_ff[0]) + $signed(c_ff);
+            res_ff      <= `SIGN_SUM(mul_ff[0], c_ff);
 
             // Конвейер кончился, так что приступаем к вычислению
             op_valid    <= (op_valid << 1);

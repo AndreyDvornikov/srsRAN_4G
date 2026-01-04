@@ -32,7 +32,8 @@ module math_complex_corr_tb;
         .i_data_q2     	(vif.i_data_q2      ),
         .i_data2_valid 	(vif.i_data_2_valid ),
         .o_valid  	    (vif.o_corr_valid   ),
-        .mag           	(vif.mag            )
+        .o_im           (vif.o_im           ),
+        .o_re           (vif.o_re)
     );
 
     // clock 100 MHz
@@ -101,8 +102,16 @@ module math_complex_corr_tb;
         init();
 
         push_corr(test_seq_i_y[0], test_seq_q_y[0], test_seq_i_s[0], test_seq_q_s[0]);
+
+        tick_cb();
+        tick_cb();
+
         push_corr(test_seq_i_y[1], test_seq_q_y[1], test_seq_i_s[1], test_seq_q_s[1]);
         push_corr(test_seq_i_y[2], test_seq_q_y[2], test_seq_i_s[2], test_seq_q_s[2]);
+        
+        tick_cb();
+        tick_cb();
+
         push_corr(test_seq_i_y[3], test_seq_q_y[3], test_seq_i_s[0], test_seq_q_s[0]);
         push_corr(test_seq_i_y[4], test_seq_q_y[4], test_seq_i_s[1], test_seq_q_s[1]);
         push_corr(test_seq_i_y[5], test_seq_q_y[5], test_seq_i_s[2], test_seq_q_s[2]);

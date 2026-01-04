@@ -11,13 +11,13 @@
       </db_ref>
    </db_ref_list>
    <zoom_setting>
-      <ZoomStartTime time="10.833 ns"></ZoomStartTime>
-      <ZoomEndTime time="135.834 ns"></ZoomEndTime>
-      <Cursor1Time time="74.699 ns"></Cursor1Time>
+      <ZoomStartTime time="51.006 ns"></ZoomStartTime>
+      <ZoomEndTime time="175.799 ns"></ZoomEndTime>
+      <Cursor1Time time="155.000 ns"></Cursor1Time>
    </zoom_setting>
    <column_width_setting>
       <NameColumnWidth column_width="175"></NameColumnWidth>
-      <ValueColumnWidth column_width="261"></ValueColumnWidth>
+      <ValueColumnWidth column_width="257"></ValueColumnWidth>
    </column_width_setting>
    <WVObjectSize size="13" />
    <wvobject fp_name="group31" type="group">
@@ -70,6 +70,16 @@
       <obj_property name="label">output</obj_property>
       <obj_property name="DisplayName">label</obj_property>
       <obj_property name="isExpanded"></obj_property>
+      <wvobject fp_name="/math_complex_corr_tb/vif/o_re" type="array">
+         <obj_property name="ElementShortName">o_re[63:0]</obj_property>
+         <obj_property name="ObjectShortName">o_re[63:0]</obj_property>
+         <obj_property name="Radix">SIGNEDDECRADIX</obj_property>
+      </wvobject>
+      <wvobject fp_name="/math_complex_corr_tb/vif/o_im" type="array">
+         <obj_property name="ElementShortName">o_im[63:0]</obj_property>
+         <obj_property name="ObjectShortName">o_im[63:0]</obj_property>
+         <obj_property name="Radix">SIGNEDDECRADIX</obj_property>
+      </wvobject>
       <wvobject fp_name="/math_complex_corr_tb/vif/o_corr_valid" type="logic">
          <obj_property name="ElementShortName">o_corr_valid</obj_property>
          <obj_property name="ObjectShortName">o_corr_valid</obj_property>

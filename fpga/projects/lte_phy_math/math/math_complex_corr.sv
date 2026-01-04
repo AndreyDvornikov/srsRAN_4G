@@ -53,11 +53,9 @@ module math_complex_corr #(
     // сигнал для того, что значение mag можно использовать
     output wire                     o_valid,
 
-    // модуль |Z|^2, думаю.. нужен ли квадрат?
-    output wire [fma_acc_size - 1:0] o_mag
-
-    // эксперементально! получить сразу оценку канала
-    // output reg [WIDTH - 1:0] channel_est [CORR_SEQ_SIZE]
+    // мнимая и реальная часть корреляции
+    output wire signed [fma_acc_size - 1:0] o_im,
+    output wire signed [fma_acc_size - 1:0] o_re
 );  
     // размер счётчика окна
     localparam int IDX_W = (CORR_SEQ_SIZE <= 1) ? 1 : $clog2(CORR_SEQ_SIZE);
@@ -163,6 +161,7 @@ module math_complex_corr #(
         ? `SIGN_SUM(op_acc_ii, op_acc_qq) 
         : 0);
 
+    // I1 * Q2
     math_mac_macro #(
         .A_WIDTH   	(WIDTH          ),
         .B_WIDTH   	(WIDTH          ),
@@ -180,6 +179,7 @@ module math_complex_corr #(
         .o_valid_mul    (op_val_mul_iq          )
     );
 
+    // Q1 * I2
     math_mac_macro #(
         .A_WIDTH   	(WIDTH          ),
         .B_WIDTH   	(WIDTH          ),
@@ -202,5 +202,6 @@ module math_complex_corr #(
         ? `SIGN_SUM(op_acc_iq, op_acc_qi) 
         : 0);
 
-    assign o_mag = op_re + op_im;
+    assign o_re = op_re; 
+    assign o_im = op_im;
 endmodule
