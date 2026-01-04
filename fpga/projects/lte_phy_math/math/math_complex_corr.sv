@@ -4,7 +4,7 @@
 
 /**
     @author Dmitry Moskovskikh
-    @name mathematics complex correlation
+    @name mathematics complex cross correlation
     
     @description
         Как и было написано, в основе лежит FMA, 
@@ -31,6 +31,9 @@
 
 `define SIGN_SUM(A,B) \
     ($signed(A) + $signed(B))
+
+`define SIGN_DIF(A,B) \
+    ($signed(A) - $signed(B))
 
 module math_complex_corr #(
     parameter int WIDTH         = 16,
@@ -118,7 +121,10 @@ module math_complex_corr #(
     end
 
     assign op_clr_mac   = op_last_it;
-    assign o_valid      = `AND(op_val_ii, op_val_qq);
+    assign o_valid      = `AND(
+        `AND(op_val_ii, op_val_qq),
+        `AND(op_val_iq, op_val_qi)
+    );
 
     // I1 * I2
     math_mac_macro #(
@@ -149,7 +155,7 @@ module math_complex_corr #(
         .i_rst       	(i_rst                  ),
         .i_clr       	(op_clr_mac             ),
         .i_a         	(i_data_q1              ),
-        .i_b         	(-$signed(i_data_q2)    ),
+        .i_b         	(i_data_q2              ),
         .i_valid     	(op_valid_data          ),
         .o_c         	(op_acc_qq              ),
         .o_valid     	(op_val_qq              ),
@@ -199,7 +205,7 @@ module math_complex_corr #(
 
     assign op_im = (
         o_valid
-        ? `SIGN_SUM(op_acc_iq, op_acc_qi) 
+        ? `SIGN_DIF(op_acc_qi, op_acc_iq) 
         : 0);
 
     assign o_re = op_re; 

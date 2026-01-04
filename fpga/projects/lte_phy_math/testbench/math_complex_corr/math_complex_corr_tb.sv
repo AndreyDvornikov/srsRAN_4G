@@ -95,7 +95,7 @@ module math_complex_corr_tb;
     };
 
     logic signed [`HW_ADC_WIDTH - 1:0] test_seq_q_s [3] = '{
-        -5, -3, -1
+        5, 3, 1
     };
 
     initial begin
