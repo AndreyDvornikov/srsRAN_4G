@@ -1,0 +1,11 @@
+# ignore vivado project files
+/vivado/.Xil
+/vivado/lte_phy_processing.*/
+/vivado/lte_phy_processing.xpr
+/vivado/*.tmp
+/vivado/vivado_*.backup.jou
+/vivado/vivado_*.backup.log
+/vivado/vivado.jou
+/vivado/vivado.log
+/vivado/vivado_*.str
+/vivado/bd/*
