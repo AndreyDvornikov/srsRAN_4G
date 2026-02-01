@@ -28,6 +28,13 @@ project:
 clean: 
 	@echo "Clean project"
 	rm -rf $(REPO_ROOT)/vivado/lte_phy_fft.*
+	rm -rf $(REPO_ROOT)vivado/.Xil
+	rm -f $(REPO_ROOT)vivado/vivado_*.backup.log
+	rm -f $(REPO_ROOT)vivado/vivado_*.backup.jou
+	rm -f $(REPO_ROOT)vivado/vivado_pid*.str
+	rm -f $(REPO_ROOT)vivado/vivado.log
+	rm -f $(REPO_ROOT)vivado/vivado.jou
+	rm -f $(REPO_ROOT)vivado/*.tmp
 
 # sim-fwd:
 # 	@echo "SIM (forward) in $(SIM_FWD_DIR)"

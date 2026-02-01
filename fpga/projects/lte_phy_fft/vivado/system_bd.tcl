@@ -28,7 +28,7 @@ set HDL_V_PATH    [file join $repo_root "hdl/verilog"]
 set HDL_SV_PATH   [file join $repo_root "hdl/systemverilog"]
 
 set rtl_files [list                                         \
-    [file join $HDL_SV_PATH "phy_fft_control.sv"]           \
+    [file join $HDL_SV_PATH "main_fft_control.sv"]          \
     [file join $HDL_SV_PATH "system_lte_phy_fft.sv"]        \
     [file join $HDL_V_PATH "bel_butterfly2.v"]              \
     [file join $HDL_V_PATH "bel_butterfly4.v"]              \
@@ -79,6 +79,8 @@ set sim128_post_tcl [file join $SIM128_DIR "view-results.post.tcl"]
 
 if {[string equal [get_filesets -quiet sim128] ""]} {
     create_fileset -simset sim128
+
+    set_property include_dirs [list $HDL_V_PATH $HDL_SV_PATH] [get_filesets sim128]
 }
 
 # по дефолту пусть будет активен sim128

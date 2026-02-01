@@ -1,6 +1,12 @@
 # Vivado project files
 /vivado/lte_phy_fft.*/**
 /vivado/lte_phy_fft.xpr
+/vivado/*.tmp
+/vivado/vivado_*.backup.jou
+/vivado/vivado_*.backup.log
+/vivado/vivado.jou
+/vivado/vivado.log
+/vivado/vivado_*.str
 
 # Devl sim things
 # sim lib

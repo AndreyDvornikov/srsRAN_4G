@@ -1,47 +1,3 @@
-////////////////////////////////////////////////////////////////////
-//
-// testbench_128.v
-//
-//
-// This file is part of the "bel_fft" project
-//
-// Author(s):
-//     - Frank Storm (Frank.Storm@gmx.net)
-//
-////////////////////////////////////////////////////////////////////
-//
-// Copyright (C) 2010-2012 Authors
-//
-// This source file may be used and distributed without
-// restriction provided that this copyright statement is not
-// removed from the file and that any derivative work contains
-// the original copyright notice and the associated disclaimer.
-//
-// This source file is free software; you can redistribute it
-// and/or modify it under the terms of the GNU Lesser General
-// Public License as published by the Free Software Foundation;
-// either version 2.1 of the License, or (at your option) any
-// later version.
-//
-// This source is distributed in the hope that it will be
-// useful, but WITHOUT ANY WARRANTY; without even the implied
-// warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-// PURPOSE.  See the GNU Lesser General Public License for more
-// details.
-//
-// You should have received a copy of the GNU Lesser General
-// Public License along with this source; if not, download it
-// from http://www.gnu.org/licenses/lgpl.html
-//
-////////////////////////////////////////////////////////////////////
-//
-// CVS Revision History
-//
-// $Log$
-//
-////////////////////////////////////////////////////////////////////
-
-
 `include "bel_fft_def.v"
 
 
@@ -52,8 +8,7 @@ module testbench_128;
     parameter inverse = 0;
     parameter word_width = 16;
     parameter ram_awidth = 7;
-
-
+    
     reg clk;
     reg rst;
 
@@ -73,85 +28,19 @@ module testbench_128;
     wire src_m_readdatavalid;
     wire dst_m_readdatavalid;
 
-    reg [`BEL_FFT_SIF_AWIDTH - 1:0] s_address;
+    wire [`BEL_FFT_SIF_AWIDTH - 1:0] s_address;
     wire [`BEL_FFT_DWIDTH - 1:0] s_readdata;
-    reg [`BEL_FFT_DWIDTH - 1:0] s_writedata;
-    reg s_read;
-    reg s_write;
-    reg [`BEL_FFT_BCNT - 1:0] s_byteenable;
+    wire [`BEL_FFT_DWIDTH - 1:0] s_writedata;
+    wire s_read;
+    wire s_write;
+    wire [`BEL_FFT_BCNT - 1:0] s_byteenable;
     wire s_waitrequest;
     wire s_readdatavalid;
 
     wire int;
 
     reg dat_sel;
-   
-   
-    task idleCycle;
-        input [31:0] cycle_count;
-        begin
-            #1
-            s_address = 0;
-            s_writedata = 0;
-            s_byteenable = 4'b0000;
-            s_write = 1'b0;
-            s_read = 1'b0;
-            repeat (cycle_count)
-                @(posedge clk);
-        end
-    endtask
 
-    
-    task writeRegister;
-        input [`BEL_FFT_SIF_AWIDTH - 1:0] address;
-        input [`BEL_FFT_DWIDTH - 1:0] data;
-        begin
-            #1 
-            s_address = address;
-            s_writedata = data;
-            s_byteenable = 4'b1111;
-            s_write = 1'b1;
-            @(posedge clk);
-            while (s_waitrequest == 1'b1)
-                @(posedge clk);
-            #1
-            s_address = 0;
-            s_writedata = 0;
-            s_byteenable = 4'b0000;
-            s_write = 1'b0;
-            @(posedge clk);
-        end
-    endtask // input
-
-
-    task readRegister;
-        input [`BEL_FFT_SIF_AWIDTH - 1:0] address;
-        begin
-            #1 
-            s_address = address;
-            s_byteenable = 4'b1111;
-            s_read = 1'b1;
-            @(posedge clk);
-            while (s_waitrequest == 1'b1)
-                @(posedge clk);
-            #1
-            s_address = 0;
-            s_byteenable = 4'b0000;
-            s_read = 1'b0;
-            while (s_readdatavalid == 1'b0)
-                @(posedge clk);
-            @(posedge clk);
-        end
-    endtask // input
-
-
-    task waitForInterrupt;
-        begin
-            @(posedge int);
-        end
-    endtask
-    
-    
     initial begin
         rst = 1'b1;
         #20 rst = 1'b0;
@@ -168,58 +57,61 @@ module testbench_128;
         #10 clk = 1'b0;
     end
 
+    reg start;
+    wire ctrl_finish;
+
+    main_fft_control u_ctrl (
+        .i_clk             (clk),
+        .i_rst             (rst),
+
+        .i_start           (start),
+        .i_int             (int),
+        .i_inverse         (inverse),
+
+        .i_fft_size         (fft_size),
+
+        .o_state           (),
+        .o_next_state      (),
+
+        .o_s_address       (s_address),
+        .i_s_readdata      (s_readdata),
+        .o_s_writedata     (s_writedata),
+        .o_s_read          (s_read),
+        .o_s_write         (s_write),
+        .o_s_byteenable    (s_byteenable),
+        .i_s_waitrequest   (s_waitrequest),
+        .i_s_readdatavalid (s_readdatavalid),
+
+        .o_finish          (ctrl_finish)
+    );
+
+    reg is_running;
+
+    always @(posedge clk or posedge rst) begin
+        if (rst) begin 
+            start       <= 1'b0;
+            is_running  <= 1'b0;
+        end else if (is_running == 1'b0) begin 
+            start <= 1'b1;
+            is_running <= 1'b1;
+        end else begin 
+            start <= 1'b0;
+        end
+    end
 
     initial begin
-        idleCycle (4);
-        // u_OutputRam.open_logfile;
+        // ждём выход из reset
+        @(negedge rst);
 
-        writeRegister (`BEL_FFT_SIZE_REG_ADDR, fft_size);
-
-        // The input data is located t address 0.
-        // finadr = 0
-        writeRegister (`BEL_FFT_SOURCE_REG_ADDR, fft_size * (word_width * 2 / `BEL_FFT_DWIDTH * `BEL_FFT_BCNT));
-
-        // Write the resulting data above the input data (FFT size * number of bytes per complex value)
-        // foutadr = FFT size * number of 32 bit word for a complex number
-        writeRegister (`BEL_FFT_DEST_REG_ADDR, 2 * fft_size * (word_width * 2 / `BEL_FFT_DWIDTH * `BEL_FFT_BCNT));
-
-        // p[0] = 0004, m[0] = 0020
-        writeRegister (`BEL_FFT_FACTORS_REG_ADDR + 0, 32'h0004_0020);
-
-        readRegister (`BEL_FFT_FACTORS_REG_ADDR + 0);
-
-        // p[1] = 0004, m[1] = 0008
-        writeRegister (`BEL_FFT_FACTORS_REG_ADDR + 1, 32'h0004_0008);
-
-        readRegister (`BEL_FFT_FACTORS_REG_ADDR + 1);
-
-        // p[2] = 0004, m[2] = 0002
-        writeRegister (`BEL_FFT_FACTORS_REG_ADDR + 2, 32'h0004_0002);
-
-        readRegister (`BEL_FFT_FACTORS_REG_ADDR + 2);
-
-        // p[3] = 0002, m[3] = 0001
-        writeRegister (`BEL_FFT_FACTORS_REG_ADDR + 3, 32'h0002_0001);
-
-        readRegister (`BEL_FFT_FACTORS_REG_ADDR + 3);
-
-        // start + enable interrupt
-        writeRegister (`BEL_FFT_CONTROL_REG_ADDR, inverse * 65536 + 257);
-
-        waitForInterrupt;
+        // ждём завершение FSM (он ждёт int от bel_fft)
+        @(posedge ctrl_finish);
         
-        idleCycle (1);
+        // можно подождать 1-2 такта, если хочешь
+        repeat (2) @(posedge clk);
 
-        // Read the status register
-        readRegister (`BEL_FFT_STATUS_REG_ADDR);
-
-        idleCycle (1);
-
-        // u_OutputRam.close_logfile;
         u_OutputRam.dump;
         $finish;
     end
-
 
     initial begin
         // Timeout in case of errors
