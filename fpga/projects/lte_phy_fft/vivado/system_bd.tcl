@@ -26,10 +26,12 @@ set_property target_simulator XSim [current_project]
 
 set HDL_V_PATH    [file join $repo_root "hdl/verilog"]
 set HDL_SV_PATH   [file join $repo_root "hdl/systemverilog"]
+set HDL_IP_PATH   [file join $repo_root "ip"]
 
-set rtl_files [list                                         \
+# add into sources_1
+add_files -fileset sources_1 -norecurse [list               \
     [file join $HDL_SV_PATH "main_fft_control.sv"]          \
-    [file join $HDL_SV_PATH "system_lte_phy_fft.sv"]        \
+    [file join $HDL_SV_PATH "system_lte_phy_fft.v"]         \
     [file join $HDL_V_PATH "bel_butterfly2.v"]              \
     [file join $HDL_V_PATH "bel_butterfly4.v"]              \
     [file join $HDL_V_PATH "bel_cadd.v"]                    \
@@ -48,10 +50,8 @@ set rtl_files [list                                         \
     [file join $HDL_V_PATH "lte_phy_fft_twiddle_rom0.v"]    \
     [file join $HDL_V_PATH "lte_phy_fft_twiddle_roms.v"]    \
     [file join $HDL_V_PATH "lte_phy_fft.v"]                 \
+    [file join $HDL_IP_PATH "lte_phy_fft_twiddle_rom0.dat" ] \
 ]
-
-# add into sources_1
-add_files -fileset sources_1 -norecurse $rtl_files
 
 # ну нас тот же axi_def.v и fft_def.v
 # include dirs (на случай `include и т.п.)
@@ -68,35 +68,49 @@ puts {INFO: [RTL] sources_1 filled OK}
 
 # dirs
 set SIM128_DIR     [file join $repo_root "devl/simulation_128"]
+set SIMTOP_DIR     [file join $repo_root "devl/system_lte_example"]
 
-# per-set file lists
-set sim128_files [list \
-    [file join $SIM128_DIR "testbench_128.v"] \
-    [file join $SIM128_DIR "bel_avl_ram.v"] \
-    [file join $SIM128_DIR "input_data_128.dat"] \
-]
-set sim128_post_tcl [file join $SIM128_DIR "view-results.post.tcl"]
+if {[string equal [get_filesets -quiet fft_128] ""]} {
+    set s_set fft_128
+    create_fileset -simset $s_set
 
-if {[string equal [get_filesets -quiet sim128] ""]} {
-    create_fileset -simset sim128
+    add_files -fileset $s_set -norecurse [list                      \
+        [file join $SIM128_DIR "testbench_128.v"]                   \
+        [file join $SIM128_DIR "bel_avl_ram.v"]                     \
+        [file join $SIM128_DIR "input_data_128.dat"]                \
+        [file join $HDL_IP_PATH "lte_phy_fft_twiddle_rom0.dat" ]    \
+        [file join $SIM128_DIR "view-results.post.tcl"]             \
+    ]
 
-    set_property include_dirs [list $HDL_V_PATH $HDL_SV_PATH] [get_filesets sim128]
+    set_property include_dirs [list $HDL_V_PATH $HDL_SV_PATH] [get_filesets $s_set]
+    # set simulation top (testbench module name)
+    set_property top testbench_128 [get_filesets $s_set]
+        
+    # run view-results after simulation finishes
+    set_property xsim.simulate.tcl.post [file join $SIM128_DIR "view-results.post.tcl"] [get_filesets $s_set]
 }
 
-# по дефолту пусть будет активен sim128
-current_fileset -simset [ get_filesets sim128 ]
+if {[string equal [get_filesets -quiet sys_top] ""]} {
+    set s_set sys_top
+    create_fileset -simset $s_set
 
-set_property include_dirs [list $HDL_V_PATH $HDL_SV_PATH] [get_filesets sim128]
-add_files -fileset sim128 -norecurse $sim128_post_tcl
+    add_files -fileset $s_set -norecurse [list                      \
+        [file join $SIMTOP_DIR "testbench.v"]                   \
+        [file join $SIMTOP_DIR "bel_avl_ram.v"]                     \
+        [file join $SIMTOP_DIR "input_data_128.dat"]                \
+        [file join $HDL_IP_PATH "lte_phy_fft_twiddle_rom0.dat" ]    \
+        [file join $SIMTOP_DIR "view-results.post.tcl"]             \
+    ]
 
-# add sim sources
-add_files -fileset sim128     -norecurse $sim128_files
+    set_property include_dirs [list $HDL_V_PATH $HDL_SV_PATH] [get_filesets $s_set]
+    # set simulation top (testbench module name)
+    set_property top testbench [get_filesets $s_set]
+        
+    # run view-results after simulation finishes
+    set_property xsim.simulate.tcl.post [file join $SIMTOP_DIR "view-results.post.tcl"] [get_filesets $s_set]
+}
 
-# set simulation top (testbench module name)
-set_property top testbench_128      [get_filesets sim128]
-
-# run view-results after simulation finishes
-set_property xsim.simulate.tcl.post $sim128_post_tcl [get_filesets sim128]
-
+# по дефолту пусть будет активен fft_128
+current_fileset -simset [ get_filesets fft_128 ]
 # compile order for sim filesets
-update_compile_order -fileset sim128
+update_compile_order -fileset fft_128

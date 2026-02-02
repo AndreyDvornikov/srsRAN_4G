@@ -140,7 +140,7 @@ module lte_phy_fft (
             .max_awidth (7),
             .size (128),
             .awidth (7),
-            .file_name ("C:\WorkPrograms\git-projects\srsRAN_4G\fpga\projects\lte_phy_fft\ip\te_phy_fft_twiddle_rom0.dat"),
+            .file_name ("lte_phy_fft_twiddle_rom0.dat"),
             .size2 (0),
             .awidth2 (0),
             .file_name2 (""),
