@@ -1,16 +1,14 @@
-// block design wrapper
-
 module system_lte_bd #(
     // размерность данных
     parameter DATA_W            = 16,
     // целевая частота дискретизации для PSS
-    parameter LTE_CORR_FS       = 3_840_000,
+    parameter LTE_CORR_FS       = 3840000,
     // количество корреляторов на PSS
     parameter LTE_CORR_LANES    = 2,
     // длительность PSS в семплах
     parameter LTE_PSS_TD_LEN    = 256,
     
-    parameter LTE_TARGET_FS     = 1_920_000
+    parameter LTE_TARGET_FS     = 1920000
 ) (
     input wire i_clk,
     input wire i_rst,
