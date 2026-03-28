@@ -205,7 +205,7 @@ module testbench;
                 busy_cycles_cur  <= 1;
                 busy_samples_cur <= i_valid ? 1 : 0;
 
-                $display("[%0t] BUSY rise: sample_count=%0d",
+                //$display("[%0t] BUSY rise: sample_count=%0d",
                          $time, sample_count);
             end
             // busy ������������
@@ -223,15 +223,15 @@ module testbench;
                 if (busy_samples_cur > busy_samples_max) busy_samples_max <= busy_samples_cur;
 
                 if (busy_samples_cur == 0) begin
-                    $display("[%0t] BUSY fall: duration=%0d clk cycles, ignored_input_samples=%0d -> OK",
-                             $time, busy_cycles_cur, busy_samples_cur);
+                    //$display("[%0t] BUSY fall: duration=%0d clk cycles, ignored_input_samples=%0d -> OK",
+                    //         $time, busy_cycles_cur, busy_samples_cur);
                 end else begin
-                    $display("[%0t] BUSY fall: duration=%0d clk cycles, ignored_input_samples=%0d -> NOT KEEPING UP",
-                             $time, busy_cycles_cur, busy_samples_cur);
+                    //$display("[%0t] BUSY fall: duration=%0d clk cycles, ignored_input_samples=%0d -> NOT KEEPING UP",
+                    //         $time, busy_cycles_cur, busy_samples_cur);
                 end
 
                 if (use_int_div)
-                    $display("         cycles/sample=%0d", ce_div);
+                    //$display("         cycles/sample=%0d", ce_div);
 
                 busy_cycles_cur  <= 0;
                 busy_samples_cur <= 0;

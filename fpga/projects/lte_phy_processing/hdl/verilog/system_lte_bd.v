@@ -8,7 +8,9 @@ module system_lte_bd #(
     // количество корреляторов на PSS
     parameter LTE_CORR_LANES    = 2,
     // длительность PSS в семплах
-    parameter LTE_PSS_TD_LEN    = 256
+    parameter LTE_PSS_TD_LEN    = 256,
+    
+    parameter LTE_TARGET_FS     = 1_920_000
 ) (
     input wire i_clk,
     input wire i_rst,
@@ -22,7 +24,7 @@ module system_lte_bd #(
     output wire signed [DATA_W - 1: 0]   o_data_q1,
     output wire                          o_data_valid_1,
 
-    output wire [3:0]                    o_dbg_pss_idx,
+    output wire [2:0]                    o_dbg_pss_idx,
     output wire [31:0]                   o_dbg_shift,
 
     output wire  [33:0]                  o_dbg_mag_pss0,
@@ -33,7 +35,8 @@ module system_lte_bd #(
         .DATA_W(DATA_W), 
         .LTE_CORR_FS(LTE_CORR_FS), 
         .LTE_CORR_LANES(LTE_CORR_LANES),
-        .LTE_PSS_TD_LEN(LTE_PSS_TD_LEN)
+        .LTE_PSS_TD_LEN(LTE_PSS_TD_LEN),
+        .LTE_TARGET_FS(LTE_TARGET_FS)
     ) u_system_lte_bd (
         .i_clk(i_clk),
         .i_rst(i_rst),

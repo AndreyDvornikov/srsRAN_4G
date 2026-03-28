@@ -18,6 +18,7 @@ VIVADO ?= vivado
 
 project:
 	@echo "Create project" 
+	@cd $(REPO_ROOT)/devl/lte_phy_sync && tar -xzf ./compressed/input_files.tar.gz -C ./
 	@cd $(REPO_ROOT)/vivado/ && "$(VIVADO)" -mode batch -notrace -source "system_bd.tcl" && cd ..
 
 clean: 

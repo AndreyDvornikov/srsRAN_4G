@@ -29,8 +29,7 @@ module math_mac_macro #(
     output wire signed [ACC_WIDTH-1:0] o_c,
     output wire                        o_valid,
 
-    output wire signed [A_WIDTH+B_WIDTH-1:0] o_mul,
-    output wire                               o_valid_mul
+    output wire                        o_valid_mul
 );
 
     localparam int MUL_WIDTH = A_WIDTH + B_WIDTH;
@@ -131,6 +130,4 @@ module math_mac_macro #(
     assign o_c         = op_acc_snap_r;
 
     assign o_valid_mul = s_pipe_end;
-    assign o_mul       = mul_w;
-
 endmodule

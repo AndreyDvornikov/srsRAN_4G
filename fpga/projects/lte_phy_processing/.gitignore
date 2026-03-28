@@ -11,3 +11,5 @@
 /vivado/vivado_*.str
 /vivado/vivado_*.pid
 /vivado/bd/*
+/devl/lte_phy_sync/input_signal.hex
+/devl/lte_phy_sync/input_awgn.hex
