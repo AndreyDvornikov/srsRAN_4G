@@ -29,33 +29,71 @@ set HDL_SV_PATH   [file join $repo_root "hdl/systemverilog"]
 set HDL_IP_PATH   [file join $repo_root "ip"]
 
 # add into sources_1
-add_files -fileset sources_1 -norecurse [list               \
-    [file join $HDL_SV_PATH "main_fft_control.sv"]          \
-    [file join $HDL_SV_PATH "system_lte_phy_fft.v"]         \
-    [file join $HDL_V_PATH "bel_butterfly2.v"]              \
-    [file join $HDL_V_PATH "bel_butterfly4.v"]              \
-    [file join $HDL_V_PATH "bel_cadd.v"]                    \
-    [file join $HDL_V_PATH "bel_caddsub.v"]                 \
-    [file join $HDL_V_PATH "bel_cdiv2.v"]                   \
-    [file join $HDL_V_PATH "bel_cdiv4.v"]                   \
-    [file join $HDL_V_PATH "bel_cmac.v"]                    \
-    [file join $HDL_V_PATH "bel_cmul.v"]                    \
-    [file join $HDL_V_PATH "bel_copy.v"]                    \
-    [file join $HDL_V_PATH "bel_csub.v"]                    \
-    [file join $HDL_V_PATH "bel_fft_avl_mif_16.v"]          \
-    [file join $HDL_V_PATH "bel_fft_avl_sif.v"]             \
-    [file join $HDL_V_PATH "bel_fft_avl.v"]                 \
-    [file join $HDL_V_PATH "bel_fft_core.v"]                \
-    [file join $HDL_V_PATH "bel_fft_def.v"]                 \
-    [file join $HDL_V_PATH "lte_phy_fft_twiddle_rom0.v"]    \
-    [file join $HDL_V_PATH "lte_phy_fft_twiddle_roms.v"]    \
-    [file join $HDL_V_PATH "lte_phy_fft.v"]                 \
-    [file join $HDL_IP_PATH "lte_phy_fft_twiddle_rom0.dat" ] \
+add_files -fileset sources_1 -norecurse [list                   \
+    [file join $HDL_SV_PATH "main_fft_control.sv"]              \
+    [file join $HDL_SV_PATH "tdpram_avl_adaptor.sv"]            \
+    [file join $HDL_V_PATH "system_lte_phy_fft.v"]              \
+    [file join $HDL_V_PATH "bel_butterfly2.v"]                  \
+    [file join $HDL_V_PATH "bel_butterfly4.v"]                  \
+    [file join $HDL_V_PATH "bel_cadd.v"]                        \
+    [file join $HDL_V_PATH "bel_caddsub.v"]                     \
+    [file join $HDL_V_PATH "bel_cdiv2.v"]                       \
+    [file join $HDL_V_PATH "bel_cdiv4.v"]                       \
+    [file join $HDL_V_PATH "bel_cmac.v"]                        \
+    [file join $HDL_V_PATH "bel_cmul.v"]                        \
+    [file join $HDL_V_PATH "bel_copy.v"]                        \
+    [file join $HDL_V_PATH "bel_csub.v"]                        \
+    [file join $HDL_V_PATH "bel_fft_avl_mif_16.v"]              \
+    [file join $HDL_V_PATH "bel_fft_avl_sif.v"]                 \
+    [file join $HDL_V_PATH "bel_fft_avl.v"]                     \
+    [file join $HDL_V_PATH "bel_fft_core.v"]                    \
+    [file join $HDL_V_PATH "bel_fft_def.v"]                     \
+    [file join $HDL_V_PATH "lte_phy_fft_twiddle_rom0.v"]        \
+    [file join $HDL_V_PATH "lte_phy_fft_twiddle_roms.v"]        \
+    [file join $HDL_V_PATH "lte_phy_fft.v"]                     \
+    [file join $HDL_IP_PATH "lte_phy_fft_twiddle_rom0.dat" ]    \
+    [file join $HDL_V_PATH "mem_tdpram_wrap.v"]                 \
 ]
 
 # ну нас тот же axi_def.v и fft_def.v
 # include dirs (на случай `include и т.п.)
 set_property include_dirs [list $HDL_V_PATH $HDL_SV_PATH] [get_filesets sources_1]
+
+set ip_xci_list [import_ip -quiet -srcset sources_1 [file join $HDL_IP_PATH "tdpram_32x128.xci"]]
+set ip_xci      [lindex $ip_xci_list 0]
+
+# Дальше работаем с объектом файла, а не со строковым путём
+generate_target all -force $ip_xci
+set ip_run [create_ip_run -force $ip_xci]
+launch_runs $ip_run
+wait_on_run $ip_run
+
+set ip_xci_list [import_ip -quiet -srcset sources_1 [file join $HDL_IP_PATH "tdpram_32x256.xci"]]
+set ip_xci      [lindex $ip_xci_list 0]
+
+# Дальше работаем с объектом файла, а не со строковым путём
+generate_target all -force $ip_xci
+set ip_run [create_ip_run -force $ip_xci]
+launch_runs $ip_run
+wait_on_run $ip_run
+
+set ip_xci_list [import_ip -quiet -srcset sources_1 [file join $HDL_IP_PATH "tdpram_32x512.xci"]]
+set ip_xci      [lindex $ip_xci_list 0]
+
+# Дальше работаем с объектом файла, а не со строковым путём
+generate_target all -force $ip_xci
+set ip_run [create_ip_run -force $ip_xci]
+launch_runs $ip_run
+wait_on_run $ip_run
+
+set ip_xci_list [import_ip -quiet -srcset sources_1 [file join $HDL_IP_PATH "tdpram_32x1024.xci"]]
+set ip_xci      [lindex $ip_xci_list 0]
+
+# Дальше работаем с объектом файла, а не со строковым путём
+generate_target all -force $ip_xci
+set ip_run [create_ip_run -force $ip_xci]
+launch_runs $ip_run
+wait_on_run $ip_run
 
 # указываем top проекта
 set_property top system_lte_phy_fft [get_filesets sources_1]
@@ -85,7 +123,6 @@ if {[string equal [get_filesets -quiet fft_128] ""]} {
     set_property include_dirs [list $HDL_V_PATH $HDL_SV_PATH] [get_filesets $s_set]
     # set simulation top (testbench module name)
     set_property top testbench_128 [get_filesets $s_set]
-        
     # run view-results after simulation finishes
     set_property xsim.simulate.tcl.post [file join $SIM128_DIR "view-results.post.tcl"] [get_filesets $s_set]
 }
@@ -106,6 +143,25 @@ if {[string equal [get_filesets -quiet sys_top] ""]} {
     # set simulation top (testbench module name)
     set_property top testbench [get_filesets $s_set]
         
+    # run view-results after simulation finishes
+    set_property xsim.simulate.tcl.post [file join $SIMTOP_DIR "view-results.post.tcl"] [get_filesets $s_set]
+}
+
+if {[string equal [get_filesets -quiet sys_top] ""]} {
+    set s_set sys_top
+    create_fileset -simset $s_set
+
+    add_files -fileset $s_set -norecurse [list                      \
+        [file join $SIMTOP_DIR "testbench.v"]                       \
+        [file join $SIMTOP_DIR "bel_avl_ram.v"]                     \
+        [file join $SIMTOP_DIR "input_data_128.dat"]                \
+        [file join $HDL_IP_PATH "lte_phy_fft_twiddle_rom0.dat" ]    \
+        [file join $SIMTOP_DIR "view-results.post.tcl"]             \
+    ]
+
+    set_property include_dirs [list $HDL_V_PATH $HDL_SV_PATH] [get_filesets $s_set]
+    # set simulation top (testbench module name)
+    set_property top testbench [get_filesets $s_set]
     # run view-results after simulation finishes
     set_property xsim.simulate.tcl.post [file join $SIMTOP_DIR "view-results.post.tcl"] [get_filesets $s_set]
 }

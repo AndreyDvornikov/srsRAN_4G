@@ -24,6 +24,7 @@ clean:
 	@echo "Clean project"
 	rm -rf $(REPO_ROOT)vivado/lte_phy_math.*
 	rm -rf $(REPO_ROOT)vivado/.Xil
+	rm -rf $(REPO_ROOT)vivado/bd
 	rm -f $(REPO_ROOT)vivado/vivado_*.backup.log
 	rm -f $(REPO_ROOT)vivado/vivado_*.backup.jou
 	rm -f $(REPO_ROOT)vivado/vivado_pid*.str

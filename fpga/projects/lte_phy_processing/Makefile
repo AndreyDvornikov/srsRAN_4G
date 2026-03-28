@@ -31,6 +31,14 @@ clean:
 	rm -f $(REPO_ROOT)vivado/vivado.jou
 	rm -f $(REPO_ROOT)vivado/*.tmp
 
+finaly:
+	@echo "Create finaly build"
+	cd $(REPO_ROOT)../ && git clone https://github.com/analogdevicesinc/hdl.git ./hw_hdl 
+	cd $(REPO_ROOT)../hw_hdl && git fetch --tags origin && git checkout hdl_2023_r2
+	cd $(REPO_ROOT)../hw_hdl/projects/fmcomms2/zed && make
+
+	cd $(REPO_ROOT)
+
 help:
 	@echo "make project"
 	

@@ -1,0 +1,1 @@
+Путь к данной папке прописан в component_parameters.Coe_File

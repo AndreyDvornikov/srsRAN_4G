@@ -1,9 +1,13 @@
 /**
     @author Dmitry Moskovskikh
     @name mathematics multiply accumulate
-    
-    @brief A * B + C = C operation macro (FMA with loopback C)
-    @description
+
+    @brief A * B + C = C operation macro (MAC with loopback C)
+
+    ВАЖНО:
+      - Последний MAC выполняется в такт, когда i_clr=1 и s_pipe_end=1
+      - Результат o_c / o_valid появляется на СЛЕДУЮЩИЙ такт
+      - Это сделано специально, чтобы упростить упаковку в 1 DSP48E1
 */
 
 `include "lte_phy_math.vh"
@@ -11,13 +15,12 @@
 module math_mac_macro #(
     parameter int A_WIDTH   = 16,
     parameter int B_WIDTH   = 16,
-    parameter int ACC_WIDTH = 64,
-    // не должен быть < 1
-    parameter int PIPE      = 1,
-
-    localparam int MUL_WIDTH = A_WIDTH + B_WIDTH
+    parameter int ACC_WIDTH = 48,
+    parameter int PIPE      = 1
 )(
-    input  wire                        i_clk, i_rst, i_clr,
+    input  wire                        i_clk,
+    input  wire                        i_rst,
+    input  wire                        i_clr,
 
     input  wire signed [A_WIDTH-1:0]   i_a,
     input  wire signed [B_WIDTH-1:0]   i_b,
@@ -26,120 +29,108 @@ module math_mac_macro #(
     output wire signed [ACC_WIDTH-1:0] o_c,
     output wire                        o_valid,
 
-    output wire signed [MUL_WIDTH-1:0] o_mul,
-    output wire                        o_valid_mul
+    output wire signed [A_WIDTH+B_WIDTH-1:0] o_mul,
+    output wire                               o_valid_mul
 );
 
-    //
-    //
-    // signal definitions
-    //
-    //
+    localparam int MUL_WIDTH = A_WIDTH + B_WIDTH;
 
-    // по сути это shiftreg
-    reg signed [A_WIDTH - 1: 0]     pipe_a [PIPE];
-    reg signed [B_WIDTH - 1: 0]     pipe_b [PIPE]; 
-    reg        [PIPE - 1:0]         pipe_i_valid; 
+    initial begin
+        if (PIPE < 1)
+            $fatal(1, "math_mac_macro: PIPE must be >= 1");
 
-    // хранит аккумулированное значение
-    reg signed [ACC_WIDTH - 1:0]    op_acc_r;
-    // для последнего аккумулированного значения
-    // в момент, как мы дёрнули i_clr
-    reg signed [ACC_WIDTH - 1:0]    op_acc_snap_r;
-    reg                             op_acc_valid;
+        if (ACC_WIDTH < MUL_WIDTH)
+            $fatal(1, "math_mac_macro: ACC_WIDTH (%0d) must be >= MUL_WIDTH (%0d)",
+                   ACC_WIDTH, MUL_WIDTH);
+    end
 
-    // для комбинаторного перемножения
-    wire signed [MUL_WIDTH - 1:0]   op_mul; 
+    // =========================================================================
+    // Input pipeline
+    // =========================================================================
+    reg signed [A_WIDTH-1:0] pipe_a [0:PIPE-1];
+    reg signed [B_WIDTH-1:0] pipe_b [0:PIPE-1];
+    reg        [PIPE-1:0]    pipe_i_valid;
 
-    //
-    //
-    // logic implementations
-    //
-    //
-
-    integer i; 
-
-    // valid end of pipe
-    wire s_pipe_end = pipe_i_valid[PIPE - 1];
-    
-    always @(posedge i_clk) begin 
-        if (i_rst) begin 
-            pipe_i_valid <= '0;
-
-            for (i = 0; i < PIPE; i++) begin 
-                pipe_a[i] <= '0;
-                pipe_b[i] <= '0;
-            end 
-        end else begin 
-            pipe_a[0] <= i_a;
-            pipe_b[0] <= i_b; 
-
-            pipe_i_valid    <= (pipe_i_valid << 1); 
-            pipe_i_valid[0] <= i_valid;  
-
-            for (i = 1; i < PIPE; i++) begin
-                pipe_a[i] <= pipe_a[i - 1]; 
-                pipe_b[i] <= pipe_b[i - 1];
-            end
-        end 
-    end 
-
-    // как только элементы дошли до последнего регистра 
-    // комбинаторно считаем умножение
-    assign op_mul = $signed(pipe_b[PIPE - 1]) * $signed(pipe_a[PIPE - 1]);
+    integer i;
 
     always @(posedge i_clk) begin
         if (i_rst) begin
-            op_acc_r        <= '0;
-            op_acc_snap_r   <= '0;
-            op_acc_valid    <= '0;
-        end else begin 
-            op_acc_valid    <= '0;
-            op_acc_snap_r   <= '0;
-
-            if (s_pipe_end) begin 
-                if (i_clr) begin 
-                    op_acc_snap_r <= $signed(op_acc_r) + $signed(op_mul);
-                    op_acc_valid <= 1'b1;
-                    op_acc_r <= '0;
-                end else begin 
-                    op_acc_r <= $signed(op_acc_r) + $signed(op_mul);
-                end 
-            end else if (i_clr) begin 
-                // d.moskovskikh [28.12.2026]
-                // решил убрать очистку без внешнего знания
-                // сигнала o_valid_mul, ибо это вносит неоднозначность
-                // последнее поданное значение в конвейере нужно аккумулировать или нет?
-                // чтобы это исправить, говорю - нужно, если есть :)
+            pipe_i_valid <= '0;
+            for (i = 0; i < PIPE; i++) begin
+                pipe_a[i] <= '0;
+                pipe_b[i] <= '0;
             end
-        end 
-    end 
+        end else begin
+            pipe_a[0] <= i_a;
+            pipe_b[0] <= i_b;
 
-    // по сути тут валид всегда, когда мы сбрасываем аккумулятор
-    assign o_valid      = op_acc_valid;
-    assign o_c          = op_acc_snap_r;
-
-    // после умножения это можно сразу пробросить наружу, для других целей
-    assign o_valid_mul  = s_pipe_end;
-    assign o_mul        = op_mul; 
-
-    //for sim
-    always @(posedge i_clk) begin
-        if (PIPE == 0) begin 
-            $display("[LOG-%0t] from math_mac_macro PIPE==0",$time);
-            $display("[LOG-%0t] from math_mac_macro PIPE MUST BE GREATHER THEN ZERO", $time);
-        end 
-
-        if (o_valid_mul) begin 
-            $display("[LOG-%0t] from math_fma_macro o_valid_mul=1",$time);
-            $display("[LOG-%0t] from math_fma_macro [o_mul=%0d]",
-                $time, o_mul);
-        end 
-
-        if (i_valid) begin
-            $display("[LOG-%0t] from math_fma_macro i_valid=1",$time);
-            $display("[LOG-%0t] from math_fma_macro [o_c=%0d]", 
-                $time, o_c);
+            pipe_i_valid[0] <= i_valid;
+            for (i = 1; i < PIPE; i++) begin
+                pipe_a[i]       <= pipe_a[i-1];
+                pipe_b[i]       <= pipe_b[i-1];
+                pipe_i_valid[i] <= pipe_i_valid[i-1];
+            end
         end
     end
+
+    reg signed [ACC_WIDTH-1:0] op_acc_r;
+    reg signed [ACC_WIDTH-1:0] op_acc_snap_r;
+    reg                        op_acc_valid;
+
+    // pending snapshot after last MAC
+    reg                        clr_pending;
+
+    wire s_pipe_end = pipe_i_valid[PIPE-1];
+
+    wire signed [MUL_WIDTH-1:0] mul_w =
+        $signed(pipe_a[PIPE-1]) * $signed(pipe_b[PIPE-1]);
+
+    wire signed [ACC_WIDTH-1:0] mul_ext_w =
+        {{(ACC_WIDTH-MUL_WIDTH){mul_w[MUL_WIDTH-1]}}, mul_w};
+
+    // Ключевая форма для DSP inference
+    wire signed [ACC_WIDTH-1:0] mac_next_w =
+        $signed(op_acc_r) + $signed(mul_ext_w);
+
+    always @(posedge i_clk) begin
+        if (i_rst) begin
+            op_acc_r      <= '0;
+            op_acc_snap_r <= '0;
+            op_acc_valid  <= 1'b0;
+            clr_pending   <= 1'b0;
+        end else begin
+            op_acc_valid <= 1'b0;
+
+            // Такт после последнего MAC:
+            // отдать накопленное значение и сразу,
+            // при наличии нового valid, начать новое накопление
+            if (clr_pending) begin
+                op_acc_snap_r <= op_acc_r;
+                op_acc_valid  <= 1'b1;
+
+                if (s_pipe_end) begin
+                    // первый элемент следующего окна не теряем
+                    op_acc_r <= mul_ext_w;
+
+                    // на случай back-to-back окон длиной 1
+                    clr_pending <= i_clr;
+                end else begin
+                    op_acc_r    <= '0;
+                    clr_pending <= 1'b0;
+                end
+            end
+            // Обычный MAC-такт
+            else if (s_pipe_end) begin
+                op_acc_r <= mac_next_w;
+                clr_pending <= i_clr;
+            end
+        end
+    end
+
+    assign o_valid     = op_acc_valid;
+    assign o_c         = op_acc_snap_r;
+
+    assign o_valid_mul = s_pipe_end;
+    assign o_mul       = mul_w;
+
 endmodule

@@ -98,20 +98,27 @@ module math_complex_corr_tb;
         5, 3, 1
     };
 
+    // для подсчёта задержки
+    int cyc = 0;
+    int last_valid_cyc = -1;
+
+    always @(posedge clk) begin
+    cyc++;
+
+    if (vif.i_data_1_valid && vif.i_data_2_valid)
+        last_valid_cyc = cyc;
+
+    if (vif.o_corr_valid)
+        $display("cyc=%0d o_valid=1, last_in_valid_cyc=%0d, clk_latency=%0d",
+                cyc, last_valid_cyc, (cyc-last_valid_cyc));
+    end
+
     initial begin
         init();
 
         push_corr(test_seq_i_y[0], test_seq_q_y[0], test_seq_i_s[0], test_seq_q_s[0]);
-
-        tick_cb();
-        tick_cb();
-
         push_corr(test_seq_i_y[1], test_seq_q_y[1], test_seq_i_s[1], test_seq_q_s[1]);
         push_corr(test_seq_i_y[2], test_seq_q_y[2], test_seq_i_s[2], test_seq_q_s[2]);
-        
-        tick_cb();
-        tick_cb();
-
         push_corr(test_seq_i_y[3], test_seq_q_y[3], test_seq_i_s[0], test_seq_q_s[0]);
         push_corr(test_seq_i_y[4], test_seq_q_y[4], test_seq_i_s[1], test_seq_q_s[1]);
         push_corr(test_seq_i_y[5], test_seq_q_y[5], test_seq_i_s[2], test_seq_q_s[2]);
@@ -119,21 +126,22 @@ module math_complex_corr_tb;
 
         tick_cb();
         tick_cb();
-        tick_cb();
-
+        // 2 такта задержка
+        
         // >> hdl_math
-        // acc_re_1=4, acc_re_2=15, acc_im_1=-5, acc_im_2=12
-        // acc_re_1=10, acc_re_2=21, acc_im_1=-11, acc_im_2=18
-        // acc_re_1=16, acc_re_2=22, acc_im_1=-14, acc_im_2=20 <- с этим сравнивать
-        // pow=1480 sum=44
-        // acc_re_1=16, acc_re_2=25, acc_im_1=-20, acc_im_2=20
-        // acc_re_1=25, acc_re_2=34, acc_im_1=-29, acc_im_2=29
-        // acc_re_1=29, acc_re_2=35, acc_im_1=-31, acc_im_2=31 <- с этим сравнивать
-        // pow=4096 sum=64
-        // acc_re_1=4, acc_re_2=30, acc_im_1=-5, acc_im_2=24
+        // acc_re_1=4, acc_re_2=15, acc_im_1=5, acc_im_2=12
+        // acc_re_1=10, acc_re_2=21, acc_im_1=11, acc_im_2=18
+        // acc_re_1=16, acc_re_2=22, acc_im_1=14, acc_im_2=20
+        // pow=1480 sum=44 acc_re=38 acc_im=6
+        // acc_re_1=16, acc_re_2=25, acc_im_1=20, acc_im_2=20
+        // acc_re_1=25, acc_re_2=34, acc_im_1=29, acc_im_2=29
+        // acc_re_1=29, acc_re_2=35, acc_im_1=31, acc_im_2=31
+        // pow=4096 sum=64 acc_re=64 acc_im=0
+        // acc_re_1=4, acc_re_2=30, acc_im_1=5, acc_im_2=24
         // max_ref = max_mag = 4096
-        // >> 
 
+        // тут смотрим и сравниваем acc_re и acc_im в тестбенче и с вариантом из матлаба
+        
         $finish;
     end
 endmodule

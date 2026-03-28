@@ -41,6 +41,18 @@ generate
             .addrb (i_addrb),
             .doutb (o_doutb)
         );
+    end else if (BLK_DEPTH == 512 && WORD_WIDTH == 32) begin : gen_blk512
+        mem_gen_512k32 u_mem_gen_512k32 (
+            .clka  (i_clk),
+            .ena   (i_ena),
+            .wea   (i_wea),
+            .addra (i_addra),
+            .dina  (i_dina),
+            .clkb  (i_clk),
+            .enb   (i_enb),
+            .addrb (i_addrb),
+            .doutb (o_doutb)
+        );
     end else begin : gen_unsupported
         initial $fatal(1, "Unsupported BLK_DEPTH=%0d or WORD_WIDTH=%0d", BLK_DEPTH, WORD_WIDTH);
     end 

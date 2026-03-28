@@ -2,10 +2,12 @@
 /vivado/.Xil
 /vivado/lte_phy_processing.*/
 /vivado/lte_phy_processing.xpr
+/vivado/lte_phy_processing.gen
 /vivado/*.tmp
 /vivado/vivado_*.backup.jou
 /vivado/vivado_*.backup.log
 /vivado/vivado.jou
 /vivado/vivado.log
 /vivado/vivado_*.str
+/vivado/vivado_*.pid
 /vivado/bd/*

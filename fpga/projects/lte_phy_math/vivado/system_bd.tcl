@@ -24,6 +24,8 @@ if {![string equal $current_vivado $required_vivado]} {
 set PRJ_NAME    "lte_phy_math"
 set PRJ_DIR     [file join $repo_root "vivado"]
 
+
+set RTL_V_DIR  [file join $repo_root "hdl" "verilog"]
 set RTL_SV_DIR  [file join $repo_root "hdl" "systemverilog"]
 set INC_DIR     [file join $repo_root "hdl" "include"]
 set DEVL_DIR    [file join $repo_root "devl"]
@@ -47,6 +49,8 @@ set rtl_files [list \
     [file join $RTL_SV_DIR "math_fma_macro.sv"] \
     [file join $RTL_SV_DIR "math_mac_macro.sv"] \
     [file join $RTL_SV_DIR "math_complex_corr.sv"] \
+    [file join $INC_DIR "lte_phy_math.vh"] \
+    [file join $RTL_V_DIR "math_complex_corr_bd.v"]
 ]
 
 # Add (reference) RTL
@@ -148,3 +152,15 @@ setup_sim "sim_math_fma_macro" \
     $tb_inc_dirs
 
 current_fileset -simset [get_filesets sim_math_complex_corr]
+
+# BLOCK DESIGN CREATING 
+
+create_bd_design lte_math_corr_bd
+current_bd_design lte_math_corr_bd
+create_bd_cell -type module -reference math_complex_corr_bd u_math_complex_corr_bd
+save_bd_design
+
+set dir_path [file normalize [file join $repo_root "vivado" "bd"]]
+file mkdir $dir_path
+
+write_bd_tcl -include_layout $repo_root/vivado/bd/lte_math_corr_bd.tcl

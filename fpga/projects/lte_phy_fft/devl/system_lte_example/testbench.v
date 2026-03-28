@@ -34,13 +34,11 @@ module testbench;
         rst = 1'b1;
         #20 rst = 1'b0;
     end
-    
 
     initial begin
         clk = 1'b0;
     end
     
-
     always begin
         #10 clk = 1'b1;
         #10 clk = 1'b0;
@@ -105,7 +103,6 @@ module testbench;
     assign m_readdatavalid = dat_sel ? dst_m_readdatavalid : src_m_readdatavalid;
     assign m_waitrequest = 1'b0;
 
-
     bel_avl_ram #(fft_size * word_width * 2 / `BEL_FFT_DWIDTH, ram_awidth,
             input_file_name, "/dev/null", "input_ram.log") u_InputRam (
             .clk_i (clk),
@@ -117,7 +114,6 @@ module testbench;
             .write (src_m_write),
             .readdatavalid (src_m_readdatavalid));
 
-
     bel_avl_ram #(fft_size * (word_width * 2 / `BEL_FFT_DWIDTH), ram_awidth,
             "", "output_data.dat", "output_ram.log") u_OutputRam (
             .clk_i (clk),
@@ -128,6 +124,8 @@ module testbench;
             .read (dst_m_read),
             .write (dst_m_write),
             .readdatavalid (dst_m_readdatavalid));
+
+    
 
     system_lte_phy_fft
         u_system_fft(
