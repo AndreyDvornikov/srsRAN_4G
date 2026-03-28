@@ -206,7 +206,7 @@ module testbench;
                 busy_samples_cur <= i_valid ? 1 : 0;
 
                 //$display("[%0t] BUSY rise: sample_count=%0d",
-                         $time, sample_count);
+                //         $time, sample_count);
             end
             // busy ������������
             else if (o_busy_d && o_busy) begin

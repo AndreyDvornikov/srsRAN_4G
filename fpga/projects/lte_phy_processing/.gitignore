@@ -1,6 +1,6 @@
 # ignore vivado project files
 /vivado/.Xil
-/vivado/lte_phy_processing.*/
+/vivado/lte_phy_processing.*/**
 /vivado/lte_phy_processing.xpr
 /vivado/lte_phy_processing.gen
 /vivado/*.tmp
