@@ -6,7 +6,7 @@
 #
 # GNU Radio Python Flow Graph
 # Title: Not titled yet
-# GNU Radio version: 3.10.11.0
+# GNU Radio version: 3.10.9.2
 
 from PyQt5 import Qt
 from gnuradio import qtgui
@@ -22,7 +22,6 @@ from gnuradio.eng_arg import eng_float, intx
 from gnuradio import eng_notation
 from gnuradio import zeromq
 import sip
-import threading
 
 
 
@@ -49,7 +48,7 @@ class broker(gr.top_block, Qt.QWidget):
         self.top_grid_layout = Qt.QGridLayout()
         self.top_layout.addLayout(self.top_grid_layout)
 
-        self.settings = Qt.QSettings("gnuradio/flowgraphs", "broker")
+        self.settings = Qt.QSettings("GNU Radio", "broker")
 
         try:
             geometry = self.settings.value("geometry")
@@ -57,13 +56,12 @@ class broker(gr.top_block, Qt.QWidget):
                 self.restoreGeometry(geometry)
         except BaseException as exc:
             print(f"Qt GUI: Could not restore geometry: {str(exc)}", file=sys.stderr)
-        self.flowgraph_started = threading.Event()
 
         ##################################################
         # Variables
         ##################################################
-        self.srs_ue1_tx_sock_proxy = srs_ue1_tx_sock_proxy = "tcp://127.0.0.1:2101"
-        self.srs_ue1_tx_sock = srs_ue1_tx_sock = "tcp://127.0.0.1:2001"
+        self.srs_ue1_tx_sock_proxy = srs_ue1_tx_sock_proxy = "tcp://127.0.0.1:2001"
+        self.srs_ue1_tx_sock = srs_ue1_tx_sock = "tcp://127.0.0.1:2101"
         self.srs_enb1_tx_sock_proxy = srs_enb1_tx_sock_proxy = "tcp://127.0.0.1:2100"
         self.srs_enb1_tx_sock = srs_enb1_tx_sock = "tcp://127.0.0.1:2000"
         self.samp_rate = samp_rate = 3.84e6
@@ -131,14 +129,11 @@ class broker(gr.top_block, Qt.QWidget):
         self.top_layout.addWidget(self._qtgui_sink_x_0_win)
         self.blocks_throttle2_0_0 = blocks.throttle( gr.sizeof_gr_complex*1, samp_rate, True, 0 if "auto" == "auto" else max( int(float(0.1) * samp_rate) if "auto" == "time" else int(0.1), 1) )
         self.blocks_throttle2_0 = blocks.throttle( gr.sizeof_gr_complex*1, samp_rate, True, 0 if "auto" == "auto" else max( int(float(0.1) * samp_rate) if "auto" == "time" else int(0.1), 1) )
-        self.blocks_file_sink_0 = blocks.file_sink(gr.sizeof_gr_complex*1, '/home/dmoskovskikh/devel/srsENB_signal_time_domain.dat', False)
-        self.blocks_file_sink_0.set_unbuffered(False)
 
 
         ##################################################
         # Connections
         ##################################################
-        self.connect((self.blocks_throttle2_0, 0), (self.blocks_file_sink_0, 0))
         self.connect((self.blocks_throttle2_0, 0), (self.qtgui_sink_x_0, 0))
         self.connect((self.blocks_throttle2_0, 0), (self.qtgui_waterfall_sink_x_0, 0))
         self.connect((self.blocks_throttle2_0, 0), (self.zeromq_rep_sink_0, 0))
@@ -148,7 +143,7 @@ class broker(gr.top_block, Qt.QWidget):
 
 
     def closeEvent(self, event):
-        self.settings = Qt.QSettings("gnuradio/flowgraphs", "broker")
+        self.settings = Qt.QSettings("GNU Radio", "broker")
         self.settings.setValue("geometry", self.saveGeometry())
         self.stop()
         self.wait()
@@ -199,7 +194,6 @@ def main(top_block_cls=broker, options=None):
     tb = top_block_cls()
 
     tb.start()
-    tb.flowgraph_started.set()
 
     tb.show()
 

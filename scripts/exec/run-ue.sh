@@ -43,5 +43,7 @@ if [ $EXEC_REL_ON_DEBUG = 1 ]; then
         open_in_console_gui gdbserver --once "${GDB_ADDR:-:2365}" "$EXEC_PATH/srsue/src/srsue" "$_SCRIPT_DIR/../../srsconfig/ue/ue1/ue.conf"
     else 
         open_in_console_gui "$EXEC_PATH/srsue/src/srsue" "$_SCRIPT_DIR/../../srsconfig/ue/ue1/ue.conf"
+	open_in_console_gui "$EXEC_PATH/srsue/src/srsue" "$_SCRIPT_DIR/../../srsconfig/ue/ue2/ue.conf"
+    	open_in_console_gui "$EXEC_PATH/srsue/src/srsue" "$_SCRIPT_DIR/../../srsconfig/ue/ue3/ue.conf"
     fi 
 fi 
