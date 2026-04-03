@@ -47,6 +47,13 @@ struct mac_ue_metrics_t {
   float    phr;
   float    dl_cqi_offset;
   float    ul_snr_offset;
+  float    dl_bler;
+  float    ul_bler;
+  uint32_t dl_prb;
+  uint32_t ul_prb;
+  uint32_t bsr;
+  float    dl_throughput;
+  float    ul_throughput;
 
   // NR-only UL PHY metrics
   float pusch_sinr;

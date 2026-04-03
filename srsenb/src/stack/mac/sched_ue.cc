@@ -44,6 +44,7 @@ namespace srsenb {
 sched_ue::sched_ue(uint16_t rnti_, const std::vector<sched_cell_params_t>& cell_list_params_, const ue_cfg_t& cfg_) :
   logger(srslog::fetch_basic_logger("MAC")), rnti(rnti_), lch_handler(rnti_)
 {
+  reset_metrics();
   cells.reserve(cell_list_params_.size());
   for (auto& c : cell_list_params_) {
     cells.emplace_back(rnti_, c, current_tti);
@@ -100,6 +101,7 @@ void sched_ue::new_subframe(tti_point tti_rx, uint32_t enb_cc_idx)
 {
   if (current_tti != tti_rx) {
     current_tti = tti_rx;
+    reset_metrics();
     lch_handler.new_tti();
     for (auto& cc : cells) {
       cc.new_tti(tti_rx);
@@ -176,8 +178,32 @@ void sched_ue::unset_sr()
 void sched_ue::metrics_read(mac_ue_metrics_t& metrics)
 {
   sched_ue_cell& pcell  = cells[cfg.supported_cc_list[0].enb_cc_idx];
+  metrics              = sched_metrics;
   metrics.ul_snr_offset = pcell.get_ul_snr_offset();
   metrics.dl_cqi_offset = pcell.get_dl_cqi_offset();
+  metrics.bsr           = get_pending_ul_new_data(to_tx_ul(current_tti), -1);
+}
+
+void sched_ue::reset_metrics()
+{
+  sched_metrics      = {};
+  sched_metrics.rnti = rnti;
+}
+
+void sched_ue::save_dl_metrics(uint32_t enb_cc_idx, const rbgmask_t& user_mask, int mcs)
+{
+  sched_metrics.cc_idx = enb_cc_idx;
+  sched_metrics.dl_prb += count_prb_per_tb(user_mask);
+  sched_metrics.dl_mcs = static_cast<float>(mcs);
+  sched_metrics.dl_mcs_samples++;
+}
+
+void sched_ue::save_ul_metrics(uint32_t enb_cc_idx, prb_interval alloc, int mcs)
+{
+  sched_metrics.cc_idx = enb_cc_idx;
+  sched_metrics.ul_prb += alloc.length();
+  sched_metrics.ul_mcs = static_cast<float>(mcs);
+  sched_metrics.ul_mcs_samples++;
 }
 
 tti_point prev_meas_gap_start(tti_point tti, uint32_t period, uint32_t offset)
@@ -393,6 +419,15 @@ int sched_ue::generate_dl_dci_format(uint32_t                          pid,
   // If allocation successful, encode TPC
   if (tbs_bytes > 0) {
     dci->tpc_pucch = cells[enb_cc_idx].tpc_fsm.encode_pucch_tpc();
+    int dl_mcs = 0;
+    int nof_tb = 0;
+    for (uint32_t tb = 0; tb != SRSRAN_MAX_TB; ++tb) {
+      if (SRSRAN_DCI_IS_TB_EN(dci->tb[tb])) {
+        dl_mcs += dci->tb[tb].mcs_idx;
+        ++nof_tb;
+      }
+    }
+    save_dl_metrics(enb_cc_idx, user_mask, (nof_tb > 0) ? (dl_mcs / nof_tb) : dci->tb[0].mcs_idx);
   }
 
   return tbs_bytes;
@@ -695,6 +730,10 @@ int sched_ue::generate_format0(sched_interface::ul_sched_data_t* data,
     } else {
       logger.error("SCHED: Unkown error while allocating format0");
     }
+  }
+
+  if (tbinfo.tbs_bytes >= 0) {
+    save_ul_metrics(enb_cc_idx, alloc, tbinfo.mcs);
   }
 
   return tbinfo.tbs_bytes;

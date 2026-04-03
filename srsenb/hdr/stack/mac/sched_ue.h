@@ -152,6 +152,10 @@ public:
   bool phich_enabled(tti_point tti_rx, uint32_t enb_cc_idx) const;
 
 private:
+  void reset_metrics();
+  void save_dl_metrics(uint32_t enb_cc_idx, const rbgmask_t& user_mask, int mcs);
+  void save_ul_metrics(uint32_t enb_cc_idx, prb_interval alloc, int mcs);
+
   bool is_sr_triggered();
 
   tbs_info allocate_new_dl_mac_pdu(sched_interface::dl_sched_data_t* data,
@@ -219,6 +223,7 @@ private:
 
   tti_point                  current_tti;
   std::vector<sched_ue_cell> cells; ///< List of eNB cells that may be configured/activated/deactivated for the UE
+  mac_ue_metrics_t           sched_metrics = {};
 };
 
 using sched_ue_list = rnti_map_t<std::unique_ptr<sched_ue> >;

@@ -88,6 +88,30 @@ DECLARE_METRIC_SET("ue_container",
                    metric_bsr,
                    mlist_bearers);
 
+DECLARE_METRIC("rnti", metric_mac_rnti, uint32_t, "");
+DECLARE_METRIC("dl_prb", metric_mac_dl_prb, uint32_t, "");
+DECLARE_METRIC("ul_prb", metric_mac_ul_prb, uint32_t, "");
+DECLARE_METRIC("bsr", metric_mac_bsr, uint32_t, "");
+DECLARE_METRIC("dl_throughput", metric_mac_dl_throughput, float, "");
+DECLARE_METRIC("ul_throughput", metric_mac_ul_throughput, float, "");
+DECLARE_METRIC("dl_bler", metric_mac_dl_bler, float, "");
+DECLARE_METRIC("ul_bler", metric_mac_ul_bler, float, "");
+DECLARE_METRIC_SET("mac_ue_container",
+                   mset_mac_ue_container,
+                   metric_mac_rnti,
+                   metric_dl_cqi,
+                   metric_dl_mcs,
+                   metric_ul_mcs,
+                   metric_mac_dl_prb,
+                   metric_mac_ul_prb,
+                   metric_mac_bsr,
+                   metric_mac_dl_throughput,
+                   metric_mac_ul_throughput,
+                   metric_mac_dl_bler,
+                   metric_mac_ul_bler);
+DECLARE_METRIC_LIST("ue_list", mlist_mac_ues, std::vector<mset_mac_ue_container>);
+DECLARE_METRIC_SET("mac", mset_mac_container, mlist_mac_ues);
+
 /// Cell container metrics.
 DECLARE_METRIC("carrier_id", metric_carrier_id, uint32_t, "");
 DECLARE_METRIC("pci", metric_pci, uint32_t, "");
@@ -101,7 +125,7 @@ DECLARE_METRIC("timestamp", metric_timestamp_tag, double, "");
 DECLARE_METRIC_LIST("cell_list", mlist_cell, std::vector<mset_cell_container>);
 
 /// Metrics context.
-using metric_context_t = srslog::build_context_type<metric_type_tag, metric_timestamp_tag, mlist_cell>;
+using metric_context_t = srslog::build_context_type<metric_type_tag, metric_timestamp_tag, mlist_cell, mset_mac_container>;
 
 } // namespace
 
@@ -109,7 +133,7 @@ using metric_context_t = srslog::build_context_type<metric_type_tag, metric_time
 static void fill_ue_metrics(mset_ue_container& ue, const enb_metrics_t& m, unsigned i)
 {
   ue.write<metric_ue_rnti>(m.stack.mac.ues[i].rnti);
-  ue.write<metric_dl_cqi>(std::max(0.1f, m.stack.mac.ues[i].dl_cqi));
+  ue.write<metric_dl_cqi>(m.stack.mac.ues[i].dl_cqi);
   if (!std::isnan(m.phy[i].dl.mcs)) {
     ue.write<metric_dl_mcs>(m.phy[i].dl.mcs);
   }
@@ -174,6 +198,21 @@ static void fill_ue_metrics(mset_ue_container& ue, const enb_metrics_t& m, unsig
   }
 }
 
+static void fill_mac_metrics(mset_mac_ue_container& ue, const mac_ue_metrics_t& mac_ue)
+{
+  ue.write<metric_mac_rnti>(mac_ue.rnti);
+  ue.write<metric_dl_cqi>(std::max(0.0f, mac_ue.dl_cqi));
+  ue.write<metric_dl_mcs>(mac_ue.dl_mcs);
+  ue.write<metric_ul_mcs>(mac_ue.ul_mcs);
+  ue.write<metric_mac_dl_prb>(mac_ue.dl_prb);
+  ue.write<metric_mac_ul_prb>(mac_ue.ul_prb);
+  ue.write<metric_mac_bsr>(mac_ue.bsr);
+  ue.write<metric_mac_dl_throughput>(mac_ue.dl_throughput);
+  ue.write<metric_mac_ul_throughput>(mac_ue.ul_throughput);
+  ue.write<metric_mac_dl_bler>(mac_ue.dl_bler);
+  ue.write<metric_mac_ul_bler>(mac_ue.ul_bler);
+}
+
 /// Returns the current time in seconds with ms precision since UNIX epoch.
 static double get_time_stamp()
 {
@@ -236,6 +275,12 @@ void metrics_json::set_metrics(const enb_metrics_t& m, const uint32_t period_use
       cell.get<mlist_ues>().emplace_back();
       fill_ue_metrics(cell.get<mlist_ues>().back(), m, i);
     }
+  }
+
+  auto& mac_ue_list = ctx.get<mset_mac_container>().get<mlist_mac_ues>();
+  mac_ue_list.resize(m.stack.mac.ues.size());
+  for (unsigned i = 0; i != m.stack.mac.ues.size(); ++i) {
+    fill_mac_metrics(mac_ue_list[i], m.stack.mac.ues[i]);
   }
 
   // Log the context.

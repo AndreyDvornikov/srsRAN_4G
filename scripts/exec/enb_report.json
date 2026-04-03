@@ -1,0 +1,200 @@
+    }
+  ],
+  "mac": {
+    "ue_list": [
+    ]
+  }
+}
+{
+  "type": "metrics",
+  "timestamp": 1775204833.82,
+  "cell_list": [
+    {
+      "cell_container": {
+        "carrier_id": 0,
+        "pci": 0,
+        "nof_rach": 0,
+        "ue_list": [
+        ]
+      }
+    }
+  ],
+  "mac": {
+    "ue_list": [
+    ]
+  }
+}
+{
+  "type": "metrics",
+  "timestamp": 1775204834.1200001,
+  "cell_list": [
+    {
+      "cell_container": {
+        "carrier_id": 0,
+        "pci": 0,
+        "nof_rach": 0,
+        "ue_list": [
+        ]
+      }
+    }
+  ],
+  "mac": {
+    "ue_list": [
+    ]
+  }
+}
+{
+  "type": "metrics",
+  "timestamp": 1775204834.42,
+  "cell_list": [
+    {
+      "cell_container": {
+        "carrier_id": 0,
+        "pci": 0,
+        "nof_rach": 0,
+        "ue_list": [
+        ]
+      }
+    }
+  ],
+  "mac": {
+    "ue_list": [
+    ]
+  }
+}
+{
+  "type": "metrics",
+  "timestamp": 1775204834.719,
+  "cell_list": [
+    {
+      "cell_container": {
+        "carrier_id": 0,
+        "pci": 0,
+        "nof_rach": 0,
+        "ue_list": [
+        ]
+      }
+    }
+  ],
+  "mac": {
+    "ue_list": [
+    ]
+  }
+}
+{
+  "type": "metrics",
+  "timestamp": 1775204835.02,
+  "cell_list": [
+    {
+      "cell_container": {
+        "carrier_id": 0,
+        "pci": 0,
+        "nof_rach": 0,
+        "ue_list": [
+        ]
+      }
+    }
+  ],
+  "mac": {
+    "ue_list": [
+    ]
+  }
+}
+{
+  "type": "metrics",
+  "timestamp": 1775204835.32,
+  "cell_list": [
+    {
+      "cell_container": {
+        "carrier_id": 0,
+        "pci": 0,
+        "nof_rach": 0,
+        "ue_list": [
+        ]
+      }
+    }
+  ],
+  "mac": {
+    "ue_list": [
+    ]
+  }
+}
+{
+  "type": "metrics",
+  "timestamp": 1775204835.6200001,
+  "cell_list": [
+    {
+      "cell_container": {
+        "carrier_id": 0,
+        "pci": 0,
+        "nof_rach": 0,
+        "ue_list": [
+        ]
+      }
+    }
+  ],
+  "mac": {
+    "ue_list": [
+    ]
+  }
+}
+{
+  "type": "metrics",
+  "timestamp": 1775204835.92,
+  "cell_list": [
+    {
+      "cell_container": {
+        "carrier_id": 0,
+        "pci": 0,
+        "nof_rach": 0,
+        "ue_list": [
+        ]
+      }
+    }
+  ],
+  "mac": {
+    "ue_list": [
+    ]
+  }
+}
+{
+  "type": "metrics",
+  "timestamp": 1775204836.22,
+  "cell_list": [
+    {
+      "cell_container": {
+        "carrier_id": 0,
+        "pci": 0,
+        "nof_rach": 0,
+        "ue_list": [
+        ]
+      }
+    }
+  ],
+  "mac": {
+    "ue_list": [
+    ]
+  }
+}
+{
+  "type": "metrics",
+  "timestamp": 1775204836.52,
+  "cell_list": [
+    {
+      "cell_container": {
+        "carrier_id": 0,
+        "pci": 0,
+        "nof_rach": 0,
+        "ue_list": [
+        ]
+      }
+    }
+  ],
+  "mac": {
+    "ue_list": [
+    ]
+  }
+}
+{
+  "type": "metrics",
+  "timestamp": 177520

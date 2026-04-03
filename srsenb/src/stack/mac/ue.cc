@@ -615,6 +615,19 @@ void ue::metrics_read(mac_ue_metrics_t* metrics_)
   ue_metrics.rnti      = rnti;
   ue_metrics.ul_buffer = ul_buffer;
   ue_metrics.dl_buffer = dl_buffer;
+  ue_metrics.bsr       = ul_buffer;
+
+  if (ue_metrics.tx_pkts > 0) {
+    ue_metrics.dl_bler = static_cast<float>(100.0 * ue_metrics.tx_errors / ue_metrics.tx_pkts);
+  }
+  if (ue_metrics.rx_pkts > 0) {
+    ue_metrics.ul_bler = static_cast<float>(100.0 * ue_metrics.rx_errors / ue_metrics.rx_pkts);
+  }
+  if (ue_metrics.nof_tti > 0) {
+    float period_s           = static_cast<float>(ue_metrics.nof_tti) * 0.001f;
+    ue_metrics.dl_throughput = static_cast<float>(ue_metrics.tx_brate) / period_s;
+    ue_metrics.ul_throughput = static_cast<float>(ue_metrics.rx_brate) / period_s;
+  }
 
   // set PCell sector id
   std::array<int, SRSRAN_MAX_CARRIERS> cc_list = sched->get_enb_ue_cc_map(rnti);
