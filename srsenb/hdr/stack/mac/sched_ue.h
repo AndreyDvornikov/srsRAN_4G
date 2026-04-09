@@ -104,6 +104,20 @@ public:
   uint32_t get_pending_ul_old_data();
   uint32_t get_pending_ul_old_data(uint32_t enb_cc_idx);
   uint32_t get_expected_ul_bitrate(uint32_t enb_cc_idx, int nof_prbs = -1) const;
+  uint64_t dl_bytes_accum = 0;
+  uint64_t ul_bytes_accum = 0;
+
+  uint64_t dl_bytes_last = 0;
+  uint64_t ul_bytes_last = 0;
+
+  double last_tput_time = 0.0;
+  uint32_t dl_tx_total = 0;
+  uint32_t dl_tx_retx  = 0;
+  float    dl_bler_avg = 0.0f;
+  static constexpr int BLER_WINDOW = 100;
+
+  std::deque<uint8_t> dl_bler_window; // 1 = retx, 0 = success
+  int dl_bler_sum = 0;
 
   dl_harq_proc* get_pending_dl_harq(tti_point tti_tx_dl, uint32_t enb_cc_idx);
   dl_harq_proc* get_empty_dl_harq(tti_point tti_tx_dl, uint32_t enb_cc_idx);

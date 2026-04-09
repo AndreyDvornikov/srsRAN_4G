@@ -25,6 +25,22 @@
 
 using namespace srsran;
 
+float get_dynamic_snr()
+{
+  static float snr = 20.0f;
+  static int counter = 0;
+
+  if (counter++ % 100 == 0) {
+    FILE* f = fopen("/tmp/snr", "r");
+    if (f) {
+      fscanf(f, "%f", &snr);
+      fclose(f);
+    }
+  }
+
+  return snr;
+}
+
 channel::channel(const channel::args_t& channel_args, uint32_t _nof_channels, srslog::basic_logger& logger) :
   logger(logger)
 {
@@ -79,7 +95,8 @@ channel::channel(const channel::args_t& channel_args, uint32_t _nof_channels, sr
   if (channel_args.awgn_enable && ret == SRSRAN_SUCCESS) {
     awgn = (srsran_channel_awgn_t*)calloc(sizeof(srsran_channel_awgn_t), 1);
     ret  = srsran_channel_awgn_init(awgn, 1234);
-    srsran_channel_awgn_set_n0(awgn, args.awgn_signal_power_dBfs - args.awgn_snr_dB);
+    float snr = get_dynamic_snr();
+    srsran_channel_awgn_set_n0(awgn, args.awgn_signal_power_dBfs - snr);
   }
 
   // Create high speed train
@@ -181,6 +198,9 @@ void channel::run(cf_t*                     in[SRSRAN_MAX_CHANNELS],
     }
 
     if (awgn) {
+      float snr = get_dynamic_snr();
+      srsran_channel_awgn_set_n0(awgn, args.awgn_signal_power_dBfs - snr);
+
       srsran_channel_awgn_run_c(awgn, buffer_in, buffer_out, len);
       srsran_vec_cf_copy(buffer_in, buffer_out, len);
     }

@@ -263,6 +263,7 @@ void phy::get_metrics(std::vector<phy_metrics_t>& metrics)
       metrics[j].ul.n += metrics_tmp[j].ul.n_samples * metrics_tmp[j].ul.n;
       metrics[j].ul.pusch_rssi += metrics_tmp[j].ul.n_samples * metrics_tmp[j].ul.pusch_rssi;
       metrics[j].ul.pusch_sinr += metrics_tmp[j].ul.n_samples * metrics_tmp[j].ul.pusch_sinr;
+      printf("raw sinr: %f\n", metrics_tmp[j].ul.pusch_sinr);
       metrics[j].ul.pucch_rssi += metrics_tmp[j].ul.n_samples_pucch * metrics_tmp[j].ul.pucch_rssi;
       metrics[j].ul.pucch_ni += metrics_tmp[j].ul.n_samples_pucch * metrics_tmp[j].ul.pucch_ni;
       metrics[j].ul.pucch_sinr += metrics_tmp[j].ul.n_samples_pucch * metrics_tmp[j].ul.pucch_sinr;

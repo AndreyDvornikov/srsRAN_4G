@@ -686,7 +686,13 @@ void cc_worker::ue::metrics_ul(uint32_t mcs, float rssi, float sinr, float turbo
     rssi = 0;
   }
   metrics.ul.mcs         = SRSRAN_VEC_CMA((float)mcs, metrics.ul.mcs, metrics.ul.n_samples);
-  metrics.ul.pusch_sinr  = SRSRAN_VEC_CMA((float)sinr, metrics.ul.pusch_sinr, metrics.ul.n_samples);
+  float sinr_db = 10 * log10(sinr);
+  if (sinr > 0) {
+    sinr_db = 10 * log10(sinr);
+  } else {
+    sinr_db = -100;
+  }
+  metrics.ul.pusch_sinr = SRSRAN_VEC_CMA(sinr_db, metrics.ul.pusch_sinr, metrics.ul.n_samples);
   metrics.ul.pusch_rssi  = SRSRAN_VEC_CMA((float)rssi, metrics.ul.pusch_rssi, metrics.ul.n_samples);
   metrics.ul.turbo_iters = SRSRAN_VEC_CMA((float)turbo_iters, metrics.ul.turbo_iters, metrics.ul.n_samples);
   metrics.ul.n_samples++;
@@ -699,7 +705,13 @@ void cc_worker::ue::metrics_ul_pucch(float rssi, float ni, float sinr)
   }
   metrics.ul.pucch_rssi = SRSRAN_VEC_CMA((float)rssi, metrics.ul.pucch_rssi, metrics.ul.n_samples_pucch);
   metrics.ul.pucch_ni   = SRSRAN_VEC_CMA((float)ni, metrics.ul.pucch_ni, metrics.ul.n_samples_pucch);
-  metrics.ul.pucch_sinr = SRSRAN_VEC_CMA((float)sinr, metrics.ul.pucch_sinr, metrics.ul.n_samples_pucch);
+  float sinr_db = 10 * log10(sinr);
+  if (sinr > 0) {
+    sinr_db = 10 * log10(sinr);
+  } else {
+    sinr_db = -100;
+  }
+  metrics.ul.pucch_sinr = SRSRAN_VEC_CMA(sinr_db, metrics.ul.pucch_sinr, metrics.ul.n_samples_pucch);
   metrics.ul.n_samples_pucch++;
 }
 

@@ -109,6 +109,7 @@ void sched_ue::new_subframe(tti_point tti_rx, uint32_t enb_cc_idx)
   }
 }
 
+
 /*******************************************************
  *
  * FAPI-like main scheduler interface.
@@ -177,11 +178,76 @@ void sched_ue::unset_sr()
 
 void sched_ue::metrics_read(mac_ue_metrics_t& metrics)
 {
-  sched_ue_cell& pcell  = cells[cfg.supported_cc_list[0].enb_cc_idx];
-  metrics              = sched_metrics;
+  uint32_t cc_idx = cfg.supported_cc_list[0].enb_cc_idx;
+  sched_ue_cell& pcell = cells[cc_idx];
+
+  metrics = sched_metrics;
+
+  // --- CHANNEL ---
+  metrics.dl_cqi = pcell.get_dl_cqi();
+
+  // --- OFFSETS ---
   metrics.ul_snr_offset = pcell.get_ul_snr_offset();
   metrics.dl_cqi_offset = pcell.get_dl_cqi_offset();
-  metrics.bsr           = get_pending_ul_new_data(to_tx_ul(current_tti), -1);
+
+  // --- BUFFERS ---
+  metrics.bsr = get_pending_ul_new_data(to_tx_ul(current_tti), -1);
+
+  // --- PF CORE ---
+  metrics.expected_bitrate = get_expected_dl_bitrate(cc_idx);
+
+  // --- HARQ ---
+  auto* harq = get_pending_dl_harq(current_tti, cc_idx);
+  metrics.harq_retx_pending = (harq != nullptr);
+
+  // =========================
+  // 🚀 MAC THROUGHPUT (TBS)
+  // =========================
+  using namespace std::chrono;
+
+  double now = duration_cast<duration<double>>(
+                   steady_clock::now().time_since_epoch())
+                   .count();
+
+  double dt = now - last_tput_time;
+  if (dt <= 0.0) dt = 1.0;
+
+  uint64_t dl_delta = dl_bytes_accum - dl_bytes_last;
+  uint64_t ul_delta = ul_bytes_accum - ul_bytes_last;
+
+  metrics.dl_throughput = (dl_delta * 8.0) / dt;
+  metrics.ul_throughput = (ul_delta * 8.0) / dt;
+
+  // =========================
+  // 📉 DL BLER (HARQ based)
+  // =========================
+
+  // считаем только если реально был DL трафик
+  if (dl_delta > 0) {
+    dl_tx_total++;
+
+    if (harq != nullptr) {
+      dl_tx_retx++;
+    }
+  }
+
+  float inst_bler = 0.0f;
+  if (dl_tx_total > 0) {
+    inst_bler = (float)dl_tx_retx / dl_tx_total;
+  }
+
+  // сглаживание (EMA)
+  const float alpha = 0.1f;
+  dl_bler_avg = (1.0f - alpha) * dl_bler_avg + alpha * inst_bler;
+
+  metrics.dl_bler = dl_bler_avg;
+
+  // =========================
+  // 🔄 update state
+  // =========================
+  dl_bytes_last = dl_bytes_accum;
+  ul_bytes_last = ul_bytes_accum;
+  last_tput_time = now;
 }
 
 void sched_ue::reset_metrics()

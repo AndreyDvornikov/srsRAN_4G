@@ -64,6 +64,10 @@ struct mac_ue_metrics_t {
   int   dl_mcs_samples;
   float ul_mcs;
   int   ul_mcs_samples;
+  float expected_bitrate;     
+  float dl_avg_rate;          
+  bool  harq_retx_pending;   
+  uint32_t bearer_priority;
 };
 /// MAC misc information for each cc.
 struct mac_cc_info_t {
