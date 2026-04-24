@@ -25,12 +25,17 @@ BUILD_DIR="${ROOT_DIR}/build/${BUILD_TYPE,,}"
 
 mkdir -p "$BUILD_DIR"
 
+# 👉 добавляем ONNX
+ONNXRUNTIME_ROOT="/opt/onnxruntime"
+
 echo "Configuring $BUILD_TYPE build in $BUILD_DIR..."
 
 cmake -S "$ROOT_DIR" -B "$BUILD_DIR" \
+  -DCMAKE_BUILD_TYPE=$BUILD_TYPE \
+  -DONNXRUNTIME_ROOT="$ONNXRUNTIME_ROOT" \
   -DSRSGUI_LIBRARIES="$_SCRIPT_DIR/dependencies/libsrsgui-build/linux/2.0/x86_64/lib/libsrsgui.so" \
   -DSRSGUI_INCLUDE_DIRS="$_SCRIPT_DIR/dependencies/libsrsgui-build/linux/2.0/x86_64/include" \
-  -DCMAKE_BUILD_TYPE=$BUILD_TYPE "${app_argv[@]}"
+  "${app_argv[@]}"
 
 echo "Building $BUILD_TYPE..."
 cmake --build "$BUILD_DIR" -- -j$(nproc) "${app_argv[@]}"

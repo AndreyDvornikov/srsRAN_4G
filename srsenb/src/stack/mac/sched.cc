@@ -20,6 +20,8 @@
  */
 
 #include <srsenb/hdr/stack/mac/sched_ue.h>
+#include <cmath>
+#include <cinttypes>
 #include <string.h>
 
 #include "srsenb/hdr/stack/mac/sched.h"
@@ -362,11 +364,57 @@ void sched::new_tti(tti_point tti_rx)
   last_tti = std::max(last_tti, tti_rx);
 
   // Generate sched results for all CCs, if not yet generated
+  uint64_t runtime_sum_us = 0;
   for (size_t cc_idx = 0; cc_idx < carrier_schedulers.size(); ++cc_idx) {
     if (not is_generated(tti_rx, cc_idx)) {
       // Generate carrier scheduling result
       carrier_schedulers[cc_idx]->generate_tti_result(tti_rx);
     }
+    runtime_sum_us += carrier_schedulers[cc_idx]->get_last_runtime_us();
+  }
+
+  if (last_metrics_tti != tti_rx) {
+    double   sum_tput_bps    = 0.0;
+    double   sum_sq_tput_bps = 0.0;
+    uint32_t active_ues      = 0;
+
+    for (const auto& ue_pair : ue_db) {
+      const float ue_tput_bps = ue_pair.second->get_dl_window_throughput_bps();
+      if (!std::isfinite(ue_tput_bps) || ue_tput_bps < 0.0f) {
+        continue;
+      }
+      active_ues++;
+      sum_tput_bps += ue_tput_bps;
+      sum_sq_tput_bps += static_cast<double>(ue_tput_bps) * static_cast<double>(ue_tput_bps);
+    }
+
+    last_num_ues              = static_cast<uint32_t>(ue_db.size());
+    last_scheduler_runtime_us = runtime_sum_us;
+    last_jfi                  = 0.0f;
+
+    if (active_ues > 0 && sum_tput_bps > 0.0 && sum_sq_tput_bps > 0.0) {
+      const double denom = static_cast<double>(active_ues) * sum_sq_tput_bps;
+      if (denom > 0.0) {
+        last_jfi = static_cast<float>((sum_tput_bps * sum_tput_bps) / denom);
+      }
+    }
+
+    if (!std::isfinite(last_jfi) || last_jfi < 0.0f) {
+      last_jfi = 0.0f;
+    } else if (last_jfi > 1.0f) {
+      last_jfi = 1.0f;
+    }
+
+    if (srslog::fetch_basic_logger("MAC").debug.enabled()) {
+      srslog::fetch_basic_logger("MAC").debug(
+          "SCHED: Global metrics tti=%u jfi=%.4f num_ues=%u runtime_us=%" PRIu64,
+          tti_rx.to_uint(),
+          last_jfi,
+          last_num_ues,
+          last_scheduler_runtime_us);
+    }
+
+    last_metrics_tti = tti_rx;
   }
 }
 
@@ -380,6 +428,14 @@ int sched::metrics_read(uint16_t rnti, mac_ue_metrics_t& metrics)
 {
   return ue_db_access_locked(
       rnti, [&metrics](sched_ue& ue) { ue.metrics_read(metrics); }, "metrics_read");
+}
+
+void sched::metrics_read(mac_metrics_t& metrics)
+{
+  std::lock_guard<std::mutex> lock(sched_mutex);
+  metrics.jfi                  = last_jfi;
+  metrics.num_ues              = last_num_ues;
+  metrics.scheduler_runtime_us = last_scheduler_runtime_us;
 }
 
 // Common way to access ue_db elements in a read locking way

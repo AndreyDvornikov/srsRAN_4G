@@ -18,5 +18,16 @@
 # and at http://www.gnu.org/licenses/.
 #
 
-set(SOURCES sched_base.cc sched_time_rr.cc sched_time_pf.cc)
+set(SOURCES sched_base.cc sched_time_rr.cc sched_time_pf.cc onnx_ranker_engine.cc onnx_ranker_observation.cc sched_time_onnx_ranker.cc)
 add_library(mac_schedulers OBJECT ${SOURCES})
+target_compile_features(mac_schedulers PUBLIC cxx_std_17)
+
+if(NOT DEFINED ONNXRUNTIME_ROOT)
+    message(FATAL_ERROR "ONNXRUNTIME_ROOT is not set. Example: -DONNXRUNTIME_ROOT=/opt/onnxruntime")
+endif()
+
+set(ONNXRUNTIME_INCLUDE_DIR "${ONNXRUNTIME_ROOT}/include")
+
+target_include_directories(mac_schedulers PRIVATE
+    "${ONNXRUNTIME_INCLUDE_DIR}"
+)

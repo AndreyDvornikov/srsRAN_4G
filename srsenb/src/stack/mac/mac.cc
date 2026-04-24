@@ -247,6 +247,7 @@ int mac::cell_cfg(const std::vector<sched_interface::cell_cfg_t>& cell_cfg_)
 void mac::get_metrics(mac_metrics_t& metrics)
 {
   srsran::rwlock_read_guard lock(rwlock);
+  scheduler.metrics_read(metrics);
   metrics.ues.clear();
   metrics.ues.reserve(ue_db.size());
   for (auto& u : ue_db) {
@@ -260,16 +261,8 @@ void mac::get_metrics(mac_metrics_t& metrics)
     scheduler.metrics_read(u.first, ue_metrics);
     ue_metrics.pci = (ue_metrics.cc_idx < cell_config.size()) ? cell_config[ue_metrics.cc_idx].cell.id : 0;
     ue_metrics.bsr = ue_metrics.ul_buffer;
-    if (ue_metrics.tx_pkts > 0) {
-      ue_metrics.dl_bler = static_cast<float>(100.0 * ue_metrics.tx_errors / ue_metrics.tx_pkts);
-    }
     if (ue_metrics.rx_pkts > 0) {
       ue_metrics.ul_bler = static_cast<float>(100.0 * ue_metrics.rx_errors / ue_metrics.rx_pkts);
-    }
-    if (ue_metrics.nof_tti > 0) {
-      float period_s           = static_cast<float>(ue_metrics.nof_tti) * 0.001f;
-      ue_metrics.dl_throughput = static_cast<float>(ue_metrics.tx_brate) / period_s;
-      ue_metrics.ul_throughput = static_cast<float>(ue_metrics.rx_brate) / period_s;
     }
   }
   metrics.cc_info.resize(detected_rachs.size());

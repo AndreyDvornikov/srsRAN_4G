@@ -17,14 +17,40 @@
 # the LICENSE file in the top-level directory of this distribution
 # and at http://www.gnu.org/licenses/.
 #
-
 add_subdirectory(common)
+add_subdirectory(schedulers)   # ← mac_schedulers создаётся тут
 
-add_subdirectory(schedulers)
+set(ONNXRUNTIME_ROOT "/opt/onnxruntime")
 
-set(SOURCES mac.cc ue.cc sched.cc sched_carrier.cc sched_grid.cc sched_ue_ctrl/sched_harq.cc sched_ue.cc
-            sched_ue_ctrl/sched_lch.cc sched_ue_ctrl/sched_ue_cell.cc sched_ue_ctrl/sched_dl_cqi.cc
-            sched_phy_ch/sf_cch_allocator.cc sched_phy_ch/sched_dci.cc sched_phy_ch/sched_phy_resource.cc
-            sched_helpers.cc)
+set(ONNXRUNTIME_INCLUDE_DIR "${ONNXRUNTIME_ROOT}/include")
+set(ONNXRUNTIME_LIBRARY "${ONNXRUNTIME_ROOT}/lib/libonnxruntime.so")
+set(SOURCES
+    mac.cc
+    ue.cc
+    sched.cc
+    sched_carrier.cc
+    sched_grid.cc
+    sched_ue_ctrl/sched_harq.cc
+    sched_ue.cc
+    sched_ue_ctrl/sched_lch.cc
+    sched_ue_ctrl/sched_ue_cell.cc
+    sched_ue_ctrl/sched_dl_cqi.cc
+    sched_phy_ch/sf_cch_allocator.cc
+    sched_phy_ch/sched_dci.cc
+    sched_phy_ch/sched_phy_resource.cc
+    sched_helpers.cc
+)
 add_library(srsenb_mac STATIC ${SOURCES} $<TARGET_OBJECTS:mac_schedulers>)
-target_link_libraries(srsenb_mac srsenb_mac_common)
+
+target_include_directories(srsenb_mac PUBLIC
+    "${ONNXRUNTIME_INCLUDE_DIR}"
+)
+
+target_compile_features(srsenb_mac PUBLIC cxx_std_17)
+
+target_link_libraries(srsenb_mac
+    PUBLIC
+        "${ONNXRUNTIME_LIBRARY}"
+    PRIVATE
+        srsenb_mac_common
+)

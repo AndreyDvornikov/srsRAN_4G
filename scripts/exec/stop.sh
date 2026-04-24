@@ -1,5 +1,8 @@
 #!/usr/bin/env bash
 
+# Author: Dvornikov Andrey
+# Year: 2026
+
 echo "[*] Closing terminals..."
 
 wmctrl -l | grep "ENB" | awk '{print $1}' | xargs -r wmctrl -ic

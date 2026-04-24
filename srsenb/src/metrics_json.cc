@@ -99,8 +99,17 @@ DECLARE_METRIC("ul_prb", metric_mac_ul_prb, uint32_t, "");
 DECLARE_METRIC("bsr", metric_mac_bsr, uint32_t, "");
 DECLARE_METRIC("dl_throughput", metric_mac_dl_throughput, float, "");
 DECLARE_METRIC("ul_throughput", metric_mac_ul_throughput, float, "");
+DECLARE_METRIC("dl_latency", metric_mac_dl_latency, float, "");
 DECLARE_METRIC("dl_bler", metric_mac_dl_bler, float, "");
 DECLARE_METRIC("ul_bler", metric_mac_ul_bler, float, "");
+DECLARE_METRIC("dl_buffer", metric_mac_dl_buffer, uint32_t, "");
+DECLARE_METRIC("dl_retx_count", metric_mac_dl_retx_count, uint32_t, "");
+DECLARE_METRIC("dl_retx_flag", metric_mac_dl_retx_flag, bool, "");
+DECLARE_METRIC("dl_aggr_level", metric_mac_dl_aggr_level, uint32_t, "");
+DECLARE_METRIC("dl_alloc_count", metric_mac_dl_alloc_count, uint32_t, "");
+DECLARE_METRIC("jfi", metric_mac_jfi, float, "");
+DECLARE_METRIC("num_ues", metric_mac_num_ues, uint32_t, "");
+DECLARE_METRIC("scheduler_runtime_us", metric_scheduler_runtime_us, uint64_t, "");
 DECLARE_METRIC_SET("mac_ue_container",
                    mset_mac_ue_container,
                    metric_mac_rnti,
@@ -112,14 +121,20 @@ DECLARE_METRIC_SET("mac_ue_container",
                    metric_mac_bsr,
                    metric_mac_dl_throughput,
                    metric_mac_ul_throughput,
+                   metric_mac_dl_latency,
                    metric_mac_dl_bler,
                    metric_mac_ul_bler,
-                   metric_dl_buffer,
+                   metric_mac_dl_buffer,
+                   metric_mac_dl_retx_count,
+                   metric_mac_dl_retx_flag,
+                   metric_mac_dl_aggr_level,
+                   metric_mac_dl_alloc_count,
                    metric_expected_bitrate,
                    metric_dl_avg_rate,
                    metric_harq_retx_pending);
 DECLARE_METRIC_LIST("ue_list", mlist_mac_ues, std::vector<mset_mac_ue_container>);
-DECLARE_METRIC_SET("mac", mset_mac_container, mlist_mac_ues);
+DECLARE_METRIC_SET(
+    "mac", mset_mac_container, metric_mac_jfi, metric_mac_num_ues, metric_scheduler_runtime_us, mlist_mac_ues);
 
 /// Cell container metrics.
 DECLARE_METRIC("carrier_id", metric_carrier_id, uint32_t, "");
@@ -304,9 +319,14 @@ static void fill_mac_metrics(mset_mac_ue_container& ue, const mac_ue_metrics_t& 
   ue.write<metric_mac_bsr>(mac_ue.bsr);
   ue.write<metric_mac_dl_throughput>(mac_ue.dl_throughput);
   ue.write<metric_mac_ul_throughput>(mac_ue.ul_throughput);
+  ue.write<metric_mac_dl_latency>(mac_ue.dl_latency);
   ue.write<metric_mac_dl_bler>(mac_ue.dl_bler);
   ue.write<metric_mac_ul_bler>(mac_ue.ul_bler);
-  ue.write<metric_dl_buffer>(mac_ue.dl_buffer);
+  ue.write<metric_mac_dl_buffer>(mac_ue.dl_buffer);
+  ue.write<metric_mac_dl_retx_count>(mac_ue.dl_retx_count);
+  ue.write<metric_mac_dl_retx_flag>(mac_ue.dl_retx_flag);
+  ue.write<metric_mac_dl_aggr_level>(mac_ue.dl_aggr_level);
+  ue.write<metric_mac_dl_alloc_count>(mac_ue.dl_alloc_count);
   ue.write<metric_expected_bitrate>(mac_ue.expected_bitrate);
   ue.write<metric_dl_avg_rate>(mac_ue.dl_avg_rate);
   ue.write<metric_harq_retx_pending>(mac_ue.harq_retx_pending);
@@ -370,7 +390,12 @@ void metrics_json::set_metrics(const enb_metrics_t& m, const uint32_t period_use
     }
   }
 
-  auto& mac_ue_list = ctx.get<mset_mac_container>().get<mlist_mac_ues>();
+  auto& mac_container = ctx.get<mset_mac_container>();
+  mac_container.write<metric_mac_jfi>(m.stack.mac.jfi);
+  mac_container.write<metric_mac_num_ues>(m.stack.mac.num_ues);
+  mac_container.write<metric_scheduler_runtime_us>(m.stack.mac.scheduler_runtime_us);
+
+  auto& mac_ue_list = mac_container.get<mlist_mac_ues>();
   mac_ue_list.resize(m.stack.mac.ues.size());
   for (unsigned i = 0; i != m.stack.mac.ues.size(); ++i) {
     fill_mac_metrics(mac_ue_list[i], m.stack.mac.ues[i]);

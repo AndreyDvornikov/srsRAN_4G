@@ -100,6 +100,7 @@ void sched_ue::set_cfg(const ue_cfg_t& cfg_)
 void sched_ue::new_subframe(tti_point tti_rx, uint32_t enb_cc_idx)
 {
   if (current_tti != tti_rx) {
+    finalize_dl_metric_tti();
     current_tti = tti_rx;
     reset_metrics();
     lch_handler.new_tti();
@@ -192,6 +193,7 @@ void sched_ue::metrics_read(mac_ue_metrics_t& metrics)
 
   // --- BUFFERS ---
   metrics.bsr = get_pending_ul_new_data(to_tx_ul(current_tti), -1);
+  metrics.dl_buffer = get_pending_dl_bytes(cc_idx);
 
   // --- PF CORE ---
   metrics.expected_bitrate = get_expected_dl_bitrate(cc_idx);
@@ -199,61 +201,149 @@ void sched_ue::metrics_read(mac_ue_metrics_t& metrics)
   // --- HARQ ---
   auto* harq = get_pending_dl_harq(current_tti, cc_idx);
   metrics.harq_retx_pending = (harq != nullptr);
+  metrics.dl_throughput = get_dl_window_throughput_bps();
+  metrics.dl_latency    = dl_latency_ms;
+  metrics.dl_bler =
+      dl_bler_window.empty() ? 0.0f : static_cast<float>(dl_bler_sum) / static_cast<float>(dl_bler_window.size());
+  metrics.dl_alloc_count = dl_alloc_count_total;
 
-  // =========================
-  // 🚀 MAC THROUGHPUT (TBS)
-  // =========================
-  using namespace std::chrono;
+  if (logger.debug.enabled()) {
+    logger.debug("SCHED: DL metric snapshot rnti=0x%x bler_sum=%u bler_size=%zu dl_tput=%.2f bps",
+                 rnti,
+                 dl_bler_sum,
+                 dl_bler_window.size(),
+                 metrics.dl_throughput);
+  }
+}
 
-  double now = duration_cast<duration<double>>(
-                   steady_clock::now().time_since_epoch())
-                   .count();
+void sched_ue::record_dl_sched_result(uint32_t          enb_cc_idx,
+                                      uint32_t          pid,
+                                      uint32_t          tbs_bytes,
+                                      uint32_t          dl_prbs,
+                                      uint32_t          dl_mcs,
+                                      bool              is_retx,
+                                      uint32_t          aggr_level)
+{
+  if (tbs_bytes == 0) {
+    return;
+  }
 
-  double dt = now - last_tput_time;
-  if (dt <= 0.0) dt = 1.0;
+  dl_harq_proc& h = cells[enb_cc_idx].harq_ent.dl_harq_procs()[pid];
 
-  uint64_t dl_delta = dl_bytes_accum - dl_bytes_last;
-  uint64_t ul_delta = ul_bytes_accum - ul_bytes_last;
+  dl_bytes_accum += tbs_bytes;
+  current_tti_dl_bytes += tbs_bytes;
+  current_tti_dl_prbs += dl_prbs;
+  current_tti_dl_retx = current_tti_dl_retx or is_retx;
+  if (is_retx) {
+    current_tti_retx_count++;
+  }
+  current_tti_dl_aggr    = aggr_level;
+  dl_alloc_count_total++;
 
-  metrics.dl_throughput = (dl_delta * 8.0) / dt;
-  metrics.ul_throughput = (ul_delta * 8.0) / dt;
+  sched_metrics.cc_idx         = enb_cc_idx;
+  sched_metrics.dl_prb         = current_tti_dl_prbs;
+  sched_metrics.dl_mcs         = static_cast<float>(dl_mcs);
+  sched_metrics.dl_retx_count  = current_tti_retx_count;
+  sched_metrics.dl_retx_flag   = current_tti_dl_retx;
+  sched_metrics.dl_aggr_level  = current_tti_dl_aggr;
+  sched_metrics.dl_alloc_count = dl_alloc_count_total;
 
-  // =========================
-  // 📉 DL BLER (HARQ based)
-  // =========================
+  if (dl_hol_ts.has_value()) {
+    const auto now = std::chrono::steady_clock::now();
+    dl_latency_ms =
+        std::chrono::duration<float, std::milli>(now - dl_hol_ts.value()).count();
+    sched_metrics.dl_latency = dl_latency_ms;
+  }
 
-  // считаем только если реально был DL трафик
-  if (dl_delta > 0) {
-    dl_tx_total++;
+  dl_bler_window.push_back(is_retx ? 1U : 0U);
+  dl_bler_sum += is_retx ? 1U : 0U;
+  if (dl_bler_window.size() > DL_METRIC_WINDOW_TTI) {
+    dl_bler_sum -= dl_bler_window.front();
+    dl_bler_window.pop_front();
+  }
 
-    if (harq != nullptr) {
-      dl_tx_retx++;
+  if (logger.debug.enabled()) {
+    logger.debug("SCHED: DL HARQ metrics rnti=0x%x pid=%u is_retx=%d nof_tx=%u nof_retx=%u event_retx_count=%u",
+                 rnti,
+                 pid,
+                 is_retx,
+                 h.nof_tx(0),
+                 h.nof_retx(0),
+                 current_tti_retx_count);
+    logger.debug("SCHED: DL grant metrics rnti=0x%x pid=%u prbs=%u mcs=%u aggr=%u",
+                 rnti,
+                 pid,
+                 dl_prbs,
+                 dl_mcs,
+                 aggr_level);
+    logger.debug("SCHED: DL BLER state rnti=0x%x window_sum=%u window_size=%zu",
+                 rnti,
+                 dl_bler_sum,
+                 dl_bler_window.size());
+    if (current_tti_dl_prbs > 0 && get_dl_window_throughput_bps() <= 0.0f) {
+      logger.warning("SCHED: DL throughput sanity failed rnti=0x%x prbs=%u tbs=%u",
+                     rnti,
+                     current_tti_dl_prbs,
+                     tbs_bytes);
     }
   }
+}
 
-  float inst_bler = 0.0f;
-  if (dl_tx_total > 0) {
-    inst_bler = (float)dl_tx_retx / dl_tx_total;
+float sched_ue::get_dl_window_throughput_bps() const
+{
+  const uint64_t bytes_in_window = dl_window_bytes_sum + current_tti_dl_bytes;
+  const size_t   window_len      = dl_tti_bytes_window.size() + 1;
+
+  if (bytes_in_window == 0 || window_len == 0) {
+    return 0.0f;
   }
 
-  // сглаживание (EMA)
-  const float alpha = 0.1f;
-  dl_bler_avg = (1.0f - alpha) * dl_bler_avg + alpha * inst_bler;
+  const double window_seconds = static_cast<double>(window_len) * 0.001;
+  if (window_seconds <= 0.0) {
+    return 0.0f;
+  }
 
-  metrics.dl_bler = dl_bler_avg;
+  return static_cast<float>((static_cast<double>(bytes_in_window) * 8.0) / window_seconds);
+}
 
-  // =========================
-  // 🔄 update state
-  // =========================
-  dl_bytes_last = dl_bytes_accum;
-  ul_bytes_last = ul_bytes_accum;
-  last_tput_time = now;
+void sched_ue::finalize_dl_metric_tti()
+{
+  if (!current_tti.is_valid()) {
+    return;
+  }
+
+  dl_tti_bytes_window.push_back(current_tti_dl_bytes);
+  dl_window_bytes_sum += current_tti_dl_bytes;
+  if (dl_tti_bytes_window.size() > DL_METRIC_WINDOW_TTI) {
+    dl_window_bytes_sum -= dl_tti_bytes_window.front();
+    dl_tti_bytes_window.pop_front();
+  }
+
+  current_tti_dl_bytes   = 0;
+  current_tti_dl_prbs    = 0;
+  current_tti_dl_retx    = false;
+  current_tti_retx_count = 0;
+  current_tti_dl_aggr    = 0;
+}
+
+void sched_ue::update_dl_hol_state(uint32_t curr_buffer)
+{
+  if (last_dl_buffer == 0 && curr_buffer > 0) {
+    dl_hol_ts.emplace(std::chrono::steady_clock::now());
+  }
+
+  if (curr_buffer == 0) {
+    dl_hol_ts.reset();
+  }
+
+  last_dl_buffer = curr_buffer;
 }
 
 void sched_ue::reset_metrics()
 {
   sched_metrics      = {};
   sched_metrics.rnti = rnti;
+  sched_metrics.dl_latency = dl_latency_ms;
 }
 
 void sched_ue::save_dl_metrics(uint32_t enb_cc_idx, const rbgmask_t& user_mask, int mcs)
@@ -892,6 +982,7 @@ srsran::interval<uint32_t> sched_ue::get_requested_dl_bytes(uint32_t enb_cc_idx)
 
   /* Set Maximum boundary */
   if (cells[enb_cc_idx].cc_state() != cc_st::active) {
+    update_dl_hol_state(0);
     return {};
   }
 
@@ -904,6 +995,7 @@ srsran::interval<uint32_t> sched_ue::get_requested_dl_bytes(uint32_t enb_cc_idx)
     if (srb0_data == 0 and not lch_handler.pending_ces.empty() and
         lch_handler.pending_ces.front() == srsran::dl_sch_lcid::CON_RES_ID) {
       // Wait for SRB0 data to be available for Msg4 before scheduling the ConRes CE
+      update_dl_hol_state(0);
       return {};
     }
     for (const lch_ue_manager::ce_cmd& ce : lch_handler.pending_ces) {
@@ -915,6 +1007,7 @@ srsran::interval<uint32_t> sched_ue::get_requested_dl_bytes(uint32_t enb_cc_idx)
     rb_data += lch_handler.get_dl_tx_total_with_overhead(i);
   }
   max_data = srb0_data + sum_ce_data + rb_data;
+  update_dl_hol_state(max_data);
 
   /* Set Minimum boundary */
   min_data = srb0_data;

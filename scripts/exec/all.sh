@@ -1,4 +1,8 @@
 #!/usr/bin/env bash
+
+# Author: Dvornikov Andrey
+# Year: 2026
+
 set -e
 
 echo "[1] Starting srsRAN..."

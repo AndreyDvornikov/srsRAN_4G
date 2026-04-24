@@ -706,7 +706,6 @@ void sf_sched::set_dl_data_sched_result(const sf_cch_allocator::alloc_result_t& 
     // Assign NCCE/L
     data->dci.location = dci_result[data_alloc.dci_idx]->dci_pos;
 
-    // Найти UE
     auto ue_it = ue_list.find(data_alloc.rnti);
     if (ue_it == ue_list.end()) {
       continue;
@@ -714,24 +713,15 @@ void sf_sched::set_dl_data_sched_result(const sf_cch_allocator::alloc_result_t& 
 
     sched_ue* user = ue_it->second.get();
 
-    uint32_t data_before =
-        user->get_pending_dl_bytes(cc_cfg->enb_cc_idx);
+    uint32_t data_before = user->get_pending_dl_bytes(cc_cfg->enb_cc_idx);
 
-    // --- HARQ ДО генерации (для лога newtx/retx) ---
-    const dl_harq_proc& dl_harq =
-    user->get_dl_harq(data_alloc.pid, cc_cfg->enb_cc_idx);
+    const dl_harq_proc& dl_harq = user->get_dl_harq(data_alloc.pid, cc_cfg->enb_cc_idx);
 
     bool is_newtx = dl_harq.is_empty();
     bool is_retx  = !is_newtx;
 
-    // --- DCI / TBS ---
     int tbs = user->generate_dl_dci_format(
-        data_alloc.pid,
-        data,
-        get_tti_tx_dl(),
-        cc_cfg->enb_cc_idx,
-        tti_alloc.get_cfi(),
-        data_alloc.user_mask);
+        data_alloc.pid, data, get_tti_tx_dl(), cc_cfg->enb_cc_idx, tti_alloc.get_cfi(), data_alloc.user_mask);
 
     if (tbs <= 0) {
       fmt::memory_buffer str_buffer;
@@ -747,29 +737,26 @@ void sf_sched::set_dl_data_sched_result(const sf_cch_allocator::alloc_result_t& 
       continue;
     }
 
-    // =========================
-    // 🚀 THROUGHPUT
-    // =========================
-    user->dl_bytes_accum += tbs;
-
-    // =========================
-    // 📉 BLER (sliding window)
-    // =========================
-    user->dl_bler_window.push_back(is_retx ? 1 : 0);
-    user->dl_bler_sum += (is_retx ? 1 : 0);
-
-    if (user->dl_bler_window.size() > user->BLER_WINDOW) {
-      user->dl_bler_sum -= user->dl_bler_window.front();
-      user->dl_bler_window.pop_front();
+    const uint32_t dl_prbs       = count_prb_per_tb(data_alloc.user_mask);
+    uint32_t       dl_mcs        = dl_harq.get_mcs(0);
+    const bool     tb0_enabled   = SRSRAN_DCI_IS_TB_EN(data->dci.tb[0]);
+    const bool     tb1_enabled   = SRSRAN_DCI_IS_TB_EN(data->dci.tb[1]);
+    if (tb0_enabled) {
+      dl_mcs = data->dci.tb[0].mcs_idx;
+    } else if (tb1_enabled) {
+      dl_mcs = data->dci.tb[1].mcs_idx;
     }
+    const uint32_t dl_aggr_level = 1U << data->dci.location.L;
 
-    // =========================
-    // 📜 LOG
-    // =========================
+    user->record_dl_sched_result(
+        cc_cfg->enb_cc_idx, data_alloc.pid, static_cast<uint32_t>(tbs), dl_prbs, dl_mcs, is_retx, dl_aggr_level);
+    const uint32_t data_after = user->get_pending_dl_bytes(cc_cfg->enb_cc_idx);
+
     fmt::memory_buffer str_buffer;
     fmt::format_to(str_buffer,
                    "SCHED: DL {} rnti=0x{:x}, cc={}, pid={}, mask=0x{:x}, dci=({}, {}), "
-                   "n_rtx={}, cfi={}, tbs={}, buffer={}/{}, tti_tx_dl={}",
+                   "is_retx={}, nof_tx={}, n_rtx={}, cfi={}, tbs={}, prbs={}, mcs={}, buffer={}/{}, aggr={}, "
+                   "tti_tx_dl={}",
                    is_newtx ? "tx" : "retx",
                    user->get_rnti(),
                    cc_cfg->enb_cc_idx,
@@ -777,11 +764,16 @@ void sf_sched::set_dl_data_sched_result(const sf_cch_allocator::alloc_result_t& 
                    data_alloc.user_mask,
                    data->dci.location.L,
                    data->dci.location.ncce,
+                   is_retx,
+                   dl_harq.nof_tx(0),
                    dl_harq.nof_retx(0) + dl_harq.nof_retx(1),
                    tti_alloc.get_cfi(),
                    tbs,
+                   dl_prbs,
+                   dl_mcs,
                    data_before,
-                   user->get_pending_dl_bytes(cc_cfg->enb_cc_idx),
+                   data_after,
+                   dl_aggr_level,
                    get_tti_tx_dl());
 
     logger.info("%s", srsran::to_c_str(str_buffer));

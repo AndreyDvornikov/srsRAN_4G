@@ -21,11 +21,13 @@
 
 #include "srsenb/hdr/stack/mac/sched_carrier.h"
 #include "srsenb/hdr/stack/mac/sched_helpers.h"
+#include "srsenb/hdr/stack/mac/schedulers/sched_time_onnx_ranker.h"
 #include "srsenb/hdr/stack/mac/schedulers/sched_time_pf.h"
 #include "srsenb/hdr/stack/mac/schedulers/sched_time_rr.h"
 #include "srsran/common/standard_streams.h"
 #include "srsran/common/string_helpers.h"
 #include "srsran/interfaces/enb_rrc_interface_mac.h"
+#include <chrono>
 
 namespace srsenb {
 
@@ -372,13 +374,18 @@ void sched::carrier_sched::carrier_cfg(const sched_cell_params_t& cell_params_)
   // init Broadcast/RA schedulers
   bc_sched_ptr.reset(new bc_sched{*cc_cfg, rrc});
   ra_sched_ptr.reset(new ra_sched{*cc_cfg, *ue_db});
-
   // Setup data scheduling algorithms
   if (cell_params_.sched_cfg->sched_policy == "time_rr") {
     sched_algo.reset(new sched_time_rr{*cc_cfg, *cell_params_.sched_cfg});
+    printf("Policy: 1");
     logger.info("Using time-domain RR scheduling policy for cc=%d", cc_cfg->enb_cc_idx);
+  } else if (cell_params_.sched_cfg->sched_policy == "time_onnx_ranker") {
+    sched_algo.reset(new sched_time_onnx_ranker{*cc_cfg, *cell_params_.sched_cfg});
+    printf("Policy: 2");
+    logger.info("Using time-domain ONNX ranker scheduling policy for cc=%d", cc_cfg->enb_cc_idx);
   } else {
     sched_algo.reset(new sched_time_pf{*cc_cfg, *cell_params_.sched_cfg});
+    printf("Policy: 3");
     logger.info("Using time-domain PF scheduling policy for cc=%d", cc_cfg->enb_cc_idx);
   }
 
@@ -395,6 +402,7 @@ void sched::carrier_sched::set_dl_tti_mask(uint8_t* tti_mask, uint32_t nof_sfs)
 
 const cc_sched_result& sched::carrier_sched::generate_tti_result(tti_point tti_rx)
 {
+  const auto start_tp = std::chrono::steady_clock::now();
   sf_sched*        tti_sched = get_sf_sched(tti_rx);
   sf_sched_result* sf_result = prev_sched_results->get_sf(tti_rx);
   cc_sched_result* cc_result = sf_result->get_cc(enb_cc_idx);
@@ -451,6 +459,9 @@ const cc_sched_result& sched::carrier_sched::generate_tti_result(tti_point tti_r
 
   log_dl_cc_results(logger, enb_cc_idx, cc_result->dl_sched_result);
   log_phich_cc_results(logger, enb_cc_idx, cc_result->ul_sched_result);
+
+  last_runtime_us = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now() - start_tp)
+                        .count();
 
   return *cc_result;
 }

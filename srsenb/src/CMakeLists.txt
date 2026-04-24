@@ -44,14 +44,15 @@ set(SRSRAN_SOURCES srsran_common srsran_mac srsran_phy srsran_gtpu srsran_rlc sr
 set(SRSENB_SOURCES ${SRSENB_SOURCES} srsgnb_stack srsgnb_ric srsgnb_ngap srsgnb_mac srsgnb_rrc)
 set(SRSRAN_SOURCES ${SRSRAN_SOURCES} rrc_nr_asn1 ngap_nr_asn1 ric_e2)
 
+set(ONNXRUNTIME_LIBRARY "${ONNXRUNTIME_ROOT}/lib/libonnxruntime.so")
 target_link_libraries(srsenb  ${SRSENB_SOURCES}
                               ${SRSRAN_SOURCES}
                               ${CMAKE_THREAD_LIBS_INIT}
                               ${Boost_LIBRARIES}
                               ${SEC_LIBRARIES}
                               ${LIBCONFIGPP_LIBRARIES}
-                              ${SCTP_LIBRARIES})
-
+                              ${SCTP_LIBRARIES}
+                              "${ONNXRUNTIME_LIBRARY}")
 if (RPATH)
   set_target_properties(srsenb PROPERTIES INSTALL_RPATH ".")
 endif (RPATH)

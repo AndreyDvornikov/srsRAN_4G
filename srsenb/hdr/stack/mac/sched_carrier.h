@@ -52,6 +52,7 @@ public:
   const ra_sched* get_ra_sched() const { return ra_sched_ptr.get(); }
   //! Get a subframe result for a given tti
   const sf_sched_result* get_sf_result(tti_point tti_rx) const;
+  uint64_t               get_last_runtime_us() const { return last_runtime_us; }
 
 private:
   //! Compute DL scheduler result for given TTI
@@ -86,6 +87,7 @@ private:
   std::vector<dl_sched_po_info_t> pending_pdcch_orders;
 
   uint32_t po_aggr_level = 2;
+  uint64_t last_runtime_us = 0;
 };
 
 //! Broadcast (SIB + paging) scheduler

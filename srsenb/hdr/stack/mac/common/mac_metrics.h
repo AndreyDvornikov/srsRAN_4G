@@ -54,6 +54,7 @@ struct mac_ue_metrics_t {
   uint32_t bsr;
   float    dl_throughput;
   float    ul_throughput;
+  float    dl_latency;
 
   // NR-only UL PHY metrics
   float pusch_sinr;
@@ -61,6 +62,10 @@ struct mac_ue_metrics_t {
   float ul_rssi;
   float fec_iters;
   float dl_mcs;
+  uint32_t dl_retx_count;
+  bool     dl_retx_flag;
+  uint32_t dl_aggr_level;
+  uint32_t dl_alloc_count;
   int   dl_mcs_samples;
   float ul_mcs;
   int   ul_mcs_samples;
@@ -83,6 +88,9 @@ struct mac_metrics_t {
   std::vector<mac_cc_info_t> cc_info;
   /// Per UE MAC metrics.
   std::vector<mac_ue_metrics_t> ues;
+  float                        jfi                  = 0.0f;
+  uint32_t                     num_ues              = 0;
+  uint64_t                     scheduler_runtime_us = 0;
 };
 
 } // namespace srsenb
