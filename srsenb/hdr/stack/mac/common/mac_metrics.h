@@ -84,13 +84,13 @@ struct mac_cc_info_t {
 
 /// Main MAC metrics.
 struct mac_metrics_t {
-  /// Per CC info.
   std::vector<mac_cc_info_t> cc_info;
-  /// Per UE MAC metrics.
   std::vector<mac_ue_metrics_t> ues;
   float                        jfi                  = 0.0f;
   uint32_t                     num_ues              = 0;
   uint64_t                     scheduler_runtime_us = 0;
+  double                       prb_util             = 0.0;
+  uint32_t nof_prb = 0;
 };
 
 } // namespace srsenb

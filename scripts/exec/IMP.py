@@ -226,6 +226,7 @@ class DashboardApp:
         self._build_layout()
         self._set_initial_snr()
         self._schedule_update()
+        
 
     # ------------------------------------------------------------------
     # Стили ttk
@@ -358,6 +359,7 @@ class DashboardApp:
             "JFI": tk.StringVar(value="0.000"),
             "UEs": tk.StringVar(value="0"),
             "Runtime": tk.StringVar(value="0 us"),
+            "PRB Util": tk.StringVar(value="N/A"),
         }
         for i, (name, var) in enumerate(self.general_values.items()):
             ttk.Label(self.general_panel, text=name).grid(row=i, column=0, sticky="w")
@@ -470,6 +472,12 @@ class DashboardApp:
         )
         self._update_general_metrics(mac)
 
+        prb_util_raw = to_number(mac.get("prb_util"))
+        if prb_util_raw is not None:
+            self.general_values["PRB Util"].set(f"{prb_util_raw * 100:.1f} %")
+        else:
+            self.general_values["PRB Util"].set("N/A")
+
         # Общая спектральная эффективность
         se_total = self._compute_se(total_throughput, total_prb)
         if se_total is not None:
@@ -487,6 +495,18 @@ class DashboardApp:
             computed_jfi = jain(active_throughputs)
             self.jfi_history.append(computed_jfi)
             self.general_values["JFI"].set(f"{computed_jfi:.3f}")
+
+        # Вычисляем PRB Util как сумму выделенных PRB к общему числу
+        nof_prb = to_number(mac.get("nof_prb"))
+        if nof_prb and nof_prb > 0:
+            prb_sum = 0
+            for ue in mac.get("ue_list", []):
+                c = ue.get("mac_ue_container") or ue.get("ue_container", {})
+                prb_sum += c.get("dl_prb", 0)
+            prb_util = (prb_sum / nof_prb) * 100.0
+            self.general_values["PRB Util"].set(f"{prb_util:.1f} %")
+        else:
+            self.general_values["PRB Util"].set("N/A")
 
         self._redraw_plots()
         if self.tab_list.curselection() and self.tab_list.curselection()[0] == 1:

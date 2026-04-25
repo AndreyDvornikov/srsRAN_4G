@@ -118,6 +118,7 @@ protected:
   float             last_jfi                  = 0.0f;
   uint32_t          last_num_ues              = 0;
   uint64_t          last_scheduler_runtime_us = 0;
+  double last_prb_util_tti = 0.0;
   std::mutex        sched_mutex;
   bool              configured;
 };

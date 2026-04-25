@@ -444,6 +444,7 @@ const cc_sched_result& sched::carrier_sched::generate_tti_result(tti_point tti_r
 
   /* Schedule DL user data */
   alloc_dl_users(tti_sched);
+  /* sched->last_prb_util_tti = last_prb_util_tti; */
 
   if ((tti_rx.to_uint() % 2) == 1) {
     alloc_ul_users(tti_sched);

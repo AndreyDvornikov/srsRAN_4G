@@ -372,6 +372,12 @@ void sched::new_tti(tti_point tti_rx)
     }
     runtime_sum_us += carrier_schedulers[cc_idx]->get_last_runtime_us();
   }
+  // Aggregate PRB utilization across all carriers
+  double prb_util_sum = 0.0;
+  for (size_t cc_idx = 0; cc_idx < carrier_schedulers.size(); ++cc_idx) {
+    prb_util_sum += carrier_schedulers[cc_idx]->last_prb_util_tti;
+  }
+  last_prb_util_tti = carrier_schedulers.empty() ? 0.0 : prb_util_sum / carrier_schedulers.size();
 
   if (last_metrics_tti != tti_rx) {
     double   sum_tput_bps    = 0.0;
@@ -436,6 +442,8 @@ void sched::metrics_read(mac_metrics_t& metrics)
   metrics.jfi                  = last_jfi;
   metrics.num_ues              = last_num_ues;
   metrics.scheduler_runtime_us = last_scheduler_runtime_us;
+  metrics.nof_prb = sched_cell_params.empty() ? 0 : sched_cell_params[0].nof_prb();
+  metrics.prb_util = last_prb_util_tti;
 }
 
 // Common way to access ue_db elements in a read locking way

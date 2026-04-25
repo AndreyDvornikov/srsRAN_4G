@@ -37,6 +37,7 @@ public:
 
   virtual void sched_dl_users(sched_ue_list& ue_db, sf_sched* tti_sched) = 0;
   virtual void sched_ul_users(sched_ue_list& ue_db, sf_sched* tti_sched) = 0;
+  virtual double get_last_prb_util_tti() const { return 0.0; }
 
 protected:
   srslog::basic_logger& logger = srslog::fetch_basic_logger("MAC");
