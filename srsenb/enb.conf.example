@@ -464,3 +464,8 @@ enable = false
 #rx_gain_offset = 62
 #mac_prach_bi         = 0
 #use_cedron_f_est_alg = false
+
+metrics_period_secs  = 1
+report_json_enable   = true
+report_json_filename = /tmp/enb_report.json
+report_json_asn1_oct = false

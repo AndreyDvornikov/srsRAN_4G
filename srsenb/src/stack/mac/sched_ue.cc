@@ -44,6 +44,7 @@ namespace srsenb {
 sched_ue::sched_ue(uint16_t rnti_, const std::vector<sched_cell_params_t>& cell_list_params_, const ue_cfg_t& cfg_) :
   logger(srslog::fetch_basic_logger("MAC")), rnti(rnti_), lch_handler(rnti_)
 {
+  reset_metrics();
   cells.reserve(cell_list_params_.size());
   for (auto& c : cell_list_params_) {
     cells.emplace_back(rnti_, c, current_tti);
@@ -99,13 +100,16 @@ void sched_ue::set_cfg(const ue_cfg_t& cfg_)
 void sched_ue::new_subframe(tti_point tti_rx, uint32_t enb_cc_idx)
 {
   if (current_tti != tti_rx) {
+    finalize_dl_metric_tti();
     current_tti = tti_rx;
+    reset_metrics();
     lch_handler.new_tti();
     for (auto& cc : cells) {
       cc.new_tti(tti_rx);
     }
   }
 }
+
 
 /*******************************************************
  *
@@ -175,9 +179,187 @@ void sched_ue::unset_sr()
 
 void sched_ue::metrics_read(mac_ue_metrics_t& metrics)
 {
-  sched_ue_cell& pcell  = cells[cfg.supported_cc_list[0].enb_cc_idx];
+  uint32_t cc_idx = cfg.supported_cc_list[0].enb_cc_idx;
+  sched_ue_cell& pcell = cells[cc_idx];
+
+  metrics = sched_metrics;
+
+  // --- CHANNEL ---
+  metrics.dl_cqi = pcell.get_dl_cqi();
+
+  // --- OFFSETS ---
   metrics.ul_snr_offset = pcell.get_ul_snr_offset();
   metrics.dl_cqi_offset = pcell.get_dl_cqi_offset();
+
+  // --- BUFFERS ---
+  metrics.bsr = get_pending_ul_new_data(to_tx_ul(current_tti), -1);
+  metrics.dl_buffer = get_pending_dl_bytes(cc_idx);
+
+  // --- PF CORE ---
+  metrics.expected_bitrate = get_expected_dl_bitrate(cc_idx);
+
+  // --- HARQ ---
+  auto* harq = get_pending_dl_harq(current_tti, cc_idx);
+  metrics.harq_retx_pending = (harq != nullptr);
+  metrics.dl_throughput = get_dl_window_throughput_bps();
+  metrics.dl_latency    = dl_latency_ms;
+  metrics.dl_bler =
+      dl_bler_window.empty() ? 0.0f : static_cast<float>(dl_bler_sum) / static_cast<float>(dl_bler_window.size());
+  metrics.dl_alloc_count = dl_alloc_count_total;
+
+  if (logger.debug.enabled()) {
+    logger.debug("SCHED: DL metric snapshot rnti=0x%x bler_sum=%u bler_size=%zu dl_tput=%.2f bps",
+                 rnti,
+                 dl_bler_sum,
+                 dl_bler_window.size(),
+                 metrics.dl_throughput);
+  }
+}
+
+void sched_ue::record_dl_sched_result(uint32_t          enb_cc_idx,
+                                      uint32_t          pid,
+                                      uint32_t          tbs_bytes,
+                                      uint32_t          dl_prbs,
+                                      uint32_t          dl_mcs,
+                                      bool              is_retx,
+                                      uint32_t          aggr_level)
+{
+  if (tbs_bytes == 0) {
+    return;
+  }
+
+  dl_harq_proc& h = cells[enb_cc_idx].harq_ent.dl_harq_procs()[pid];
+
+  dl_bytes_accum += tbs_bytes;
+  current_tti_dl_bytes += tbs_bytes;
+  current_tti_dl_prbs += dl_prbs;
+  current_tti_dl_retx = current_tti_dl_retx or is_retx;
+  if (is_retx) {
+    current_tti_retx_count++;
+  }
+  current_tti_dl_aggr    = aggr_level;
+  dl_alloc_count_total++;
+
+  sched_metrics.cc_idx         = enb_cc_idx;
+  sched_metrics.dl_prb         = current_tti_dl_prbs;
+  sched_metrics.dl_mcs         = static_cast<float>(dl_mcs);
+  sched_metrics.dl_retx_count  = current_tti_retx_count;
+  sched_metrics.dl_retx_flag   = current_tti_dl_retx;
+  sched_metrics.dl_aggr_level  = current_tti_dl_aggr;
+  sched_metrics.dl_alloc_count = dl_alloc_count_total;
+
+  if (dl_hol_ts.has_value()) {
+    const auto now = std::chrono::steady_clock::now();
+    dl_latency_ms =
+        std::chrono::duration<float, std::milli>(now - dl_hol_ts.value()).count();
+    sched_metrics.dl_latency = dl_latency_ms;
+  }
+
+  dl_bler_window.push_back(is_retx ? 1U : 0U);
+  dl_bler_sum += is_retx ? 1U : 0U;
+  if (dl_bler_window.size() > DL_METRIC_WINDOW_TTI) {
+    dl_bler_sum -= dl_bler_window.front();
+    dl_bler_window.pop_front();
+  }
+
+  if (logger.debug.enabled()) {
+    logger.debug("SCHED: DL HARQ metrics rnti=0x%x pid=%u is_retx=%d nof_tx=%u nof_retx=%u event_retx_count=%u",
+                 rnti,
+                 pid,
+                 is_retx,
+                 h.nof_tx(0),
+                 h.nof_retx(0),
+                 current_tti_retx_count);
+    logger.debug("SCHED: DL grant metrics rnti=0x%x pid=%u prbs=%u mcs=%u aggr=%u",
+                 rnti,
+                 pid,
+                 dl_prbs,
+                 dl_mcs,
+                 aggr_level);
+    logger.debug("SCHED: DL BLER state rnti=0x%x window_sum=%u window_size=%zu",
+                 rnti,
+                 dl_bler_sum,
+                 dl_bler_window.size());
+    if (current_tti_dl_prbs > 0 && get_dl_window_throughput_bps() <= 0.0f) {
+      logger.warning("SCHED: DL throughput sanity failed rnti=0x%x prbs=%u tbs=%u",
+                     rnti,
+                     current_tti_dl_prbs,
+                     tbs_bytes);
+    }
+  }
+}
+
+float sched_ue::get_dl_window_throughput_bps() const
+{
+  const uint64_t bytes_in_window = dl_window_bytes_sum + current_tti_dl_bytes;
+  const size_t   window_len      = dl_tti_bytes_window.size() + 1;
+
+  if (bytes_in_window == 0 || window_len == 0) {
+    return 0.0f;
+  }
+
+  const double window_seconds = static_cast<double>(window_len) * 0.001;
+  if (window_seconds <= 0.0) {
+    return 0.0f;
+  }
+
+  return static_cast<float>((static_cast<double>(bytes_in_window) * 8.0) / window_seconds);
+}
+
+void sched_ue::finalize_dl_metric_tti()
+{
+  if (!current_tti.is_valid()) {
+    return;
+  }
+
+  dl_tti_bytes_window.push_back(current_tti_dl_bytes);
+  dl_window_bytes_sum += current_tti_dl_bytes;
+  if (dl_tti_bytes_window.size() > DL_METRIC_WINDOW_TTI) {
+    dl_window_bytes_sum -= dl_tti_bytes_window.front();
+    dl_tti_bytes_window.pop_front();
+  }
+
+  current_tti_dl_bytes   = 0;
+  current_tti_dl_prbs    = 0;
+  current_tti_dl_retx    = false;
+  current_tti_retx_count = 0;
+  current_tti_dl_aggr    = 0;
+}
+
+void sched_ue::update_dl_hol_state(uint32_t curr_buffer)
+{
+  if (last_dl_buffer == 0 && curr_buffer > 0) {
+    dl_hol_ts.emplace(std::chrono::steady_clock::now());
+  }
+
+  if (curr_buffer == 0) {
+    dl_hol_ts.reset();
+  }
+
+  last_dl_buffer = curr_buffer;
+}
+
+void sched_ue::reset_metrics()
+{
+  sched_metrics      = {};
+  sched_metrics.rnti = rnti;
+  sched_metrics.dl_latency = dl_latency_ms;
+}
+
+void sched_ue::save_dl_metrics(uint32_t enb_cc_idx, const rbgmask_t& user_mask, int mcs)
+{
+  sched_metrics.cc_idx = enb_cc_idx;
+  sched_metrics.dl_prb += count_prb_per_tb(user_mask);
+  sched_metrics.dl_mcs = static_cast<float>(mcs);
+  sched_metrics.dl_mcs_samples++;
+}
+
+void sched_ue::save_ul_metrics(uint32_t enb_cc_idx, prb_interval alloc, int mcs)
+{
+  sched_metrics.cc_idx = enb_cc_idx;
+  sched_metrics.ul_prb += alloc.length();
+  sched_metrics.ul_mcs = static_cast<float>(mcs);
+  sched_metrics.ul_mcs_samples++;
 }
 
 tti_point prev_meas_gap_start(tti_point tti, uint32_t period, uint32_t offset)
@@ -393,6 +575,15 @@ int sched_ue::generate_dl_dci_format(uint32_t                          pid,
   // If allocation successful, encode TPC
   if (tbs_bytes > 0) {
     dci->tpc_pucch = cells[enb_cc_idx].tpc_fsm.encode_pucch_tpc();
+    int dl_mcs = 0;
+    int nof_tb = 0;
+    for (uint32_t tb = 0; tb != SRSRAN_MAX_TB; ++tb) {
+      if (SRSRAN_DCI_IS_TB_EN(dci->tb[tb])) {
+        dl_mcs += dci->tb[tb].mcs_idx;
+        ++nof_tb;
+      }
+    }
+    save_dl_metrics(enb_cc_idx, user_mask, (nof_tb > 0) ? (dl_mcs / nof_tb) : dci->tb[0].mcs_idx);
   }
 
   return tbs_bytes;
@@ -697,6 +888,10 @@ int sched_ue::generate_format0(sched_interface::ul_sched_data_t* data,
     }
   }
 
+  if (tbinfo.tbs_bytes >= 0) {
+    save_ul_metrics(enb_cc_idx, alloc, tbinfo.mcs);
+  }
+
   return tbinfo.tbs_bytes;
 }
 
@@ -787,6 +982,7 @@ srsran::interval<uint32_t> sched_ue::get_requested_dl_bytes(uint32_t enb_cc_idx)
 
   /* Set Maximum boundary */
   if (cells[enb_cc_idx].cc_state() != cc_st::active) {
+    update_dl_hol_state(0);
     return {};
   }
 
@@ -799,6 +995,7 @@ srsran::interval<uint32_t> sched_ue::get_requested_dl_bytes(uint32_t enb_cc_idx)
     if (srb0_data == 0 and not lch_handler.pending_ces.empty() and
         lch_handler.pending_ces.front() == srsran::dl_sch_lcid::CON_RES_ID) {
       // Wait for SRB0 data to be available for Msg4 before scheduling the ConRes CE
+      update_dl_hol_state(0);
       return {};
     }
     for (const lch_ue_manager::ce_cmd& ce : lch_handler.pending_ces) {
@@ -810,6 +1007,7 @@ srsran::interval<uint32_t> sched_ue::get_requested_dl_bytes(uint32_t enb_cc_idx)
     rb_data += lch_handler.get_dl_tx_total_with_overhead(i);
   }
   max_data = srb0_data + sum_ce_data + rb_data;
+  update_dl_hol_state(max_data);
 
   /* Set Minimum boundary */
   min_data = srb0_data;

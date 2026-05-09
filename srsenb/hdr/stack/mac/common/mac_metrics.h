@@ -19,61 +19,32 @@
  *
  */
 
-#ifndef SRSENB_MAC_METRICS_H
-#define SRSENB_MAC_METRICS_H
+/******************************************************************************
+ * File:        metrics_json.h
+ * Description: Metrics class printing to a json file.
+ *****************************************************************************/
 
-#include <cstdint>
-#include <vector>
+#ifndef SRSENB_METRICS_JSON_H
+#define SRSENB_METRICS_JSON_H
+
+#include "srsran/interfaces/enb_metrics_interface.h"
+#include "srsran/srslog/log_channel.h"
 
 namespace srsenb {
 
-/// MAC metrics per user
-struct mac_ue_metrics_t {
-  uint16_t rnti;
-  uint32_t pci;
-  uint32_t nof_tti;
-  uint32_t cc_idx;
-  int      tx_pkts;
-  int      tx_errors;
-  int      tx_brate;
-  int      rx_pkts;
-  int      rx_errors;
-  int      rx_brate;
-  int      ul_buffer;
-  int      dl_buffer;
-  float    dl_cqi;
-  float    dl_ri;
-  float    dl_pmi;
-  float    phr;
-  float    dl_cqi_offset;
-  float    ul_snr_offset;
+class metrics_json : public srsran::metrics_listener<enb_metrics_t>
+{
+public:
+  metrics_json(srslog::log_channel& c, enb_metrics_interface* enb_) : log_c(c), enb(enb_) {}
 
-  // NR-only UL PHY metrics
-  float pusch_sinr;
-  float pucch_sinr;
-  float ul_rssi;
-  float fec_iters;
-  float dl_mcs;
-  int   dl_mcs_samples;
-  float ul_mcs;
-  int   ul_mcs_samples;
-};
-/// MAC misc information for each cc.
-struct mac_cc_info_t {
-  /// PCI value.
-  uint32_t pci;
-  /// RACH preamble counter per cc.
-  uint32_t cc_rach_counter;
-};
+  void set_metrics(const enb_metrics_t& m, const uint32_t period_usec) override;
+  void stop() override {}
 
-/// Main MAC metrics.
-struct mac_metrics_t {
-  /// Per CC info.
-  std::vector<mac_cc_info_t> cc_info;
-  /// Per UE MAC metrics.
-  std::vector<mac_ue_metrics_t> ues;
+private:
+  srslog::log_channel&   log_c;
+  enb_metrics_interface* enb;
 };
 
 } // namespace srsenb
 
-#endif // SRSENB_MAC_METRICS_H
+#endif // SRSENB_METRICS_JSON_H
