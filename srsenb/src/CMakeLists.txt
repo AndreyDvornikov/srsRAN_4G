@@ -67,3 +67,12 @@ else(NOT ${BUILDENB_CMD} STREQUAL "")
 endif (NOT ${BUILDENB_CMD} STREQUAL "")
 
 install(TARGETS srsenb DESTINATION ${RUNTIME_DIR} OPTIONAL)
+
+target_link_libraries(srsenb  ${SRSENB_SOURCES}
+                              ${SRSRAN_SOURCES}
+                              ${CMAKE_THREAD_LIBS_INIT}
+                              ${Boost_LIBRARIES}
+                              ${SEC_LIBRARIES}
+                              ${LIBCONFIGPP_LIBRARIES}
+                              ${SCTP_LIBRARIES}
+                              ${ONNXRUNTIME_LIBRARY})

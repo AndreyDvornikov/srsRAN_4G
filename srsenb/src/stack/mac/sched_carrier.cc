@@ -25,6 +25,7 @@
 #include "srsenb/hdr/stack/mac/schedulers/sched_time_rr.h"
 #include "srsran/common/standard_streams.h"
 #include "srsran/common/string_helpers.h"
+#include "srsenb/hdr/stack/mac/schedulers/sched_time_onnx_ranker.h"
 #include "srsran/interfaces/enb_rrc_interface_mac.h"
 
 namespace srsenb {
@@ -376,8 +377,14 @@ void sched::carrier_sched::carrier_cfg(const sched_cell_params_t& cell_params_)
   // Setup data scheduling algorithms
   if (cell_params_.sched_cfg->sched_policy == "time_rr") {
     sched_algo.reset(new sched_time_rr{*cc_cfg, *cell_params_.sched_cfg});
+    std::cout << "Используется Round Robin\n";
     logger.info("Using time-domain RR scheduling policy for cc=%d", cc_cfg->enb_cc_idx);
+  } else if (cell_params_.sched_cfg->sched_policy == "time_onnx_ranker") {
+    std::cout << "Используется ONNX-ранкер\n";
+    sched_algo.reset(new sched_time_onnx_ranker{*cc_cfg, *cell_params_.sched_cfg});
+    logger.info("Using time-domain ONNX ranker scheduling policy for cc=%d", cc_cfg->enb_cc_idx);
   } else {
+    std::cout << "Используется Proportional Fair\n";
     sched_algo.reset(new sched_time_pf{*cc_cfg, *cell_params_.sched_cfg});
     logger.info("Using time-domain PF scheduling policy for cc=%d", cc_cfg->enb_cc_idx);
   }

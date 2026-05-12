@@ -1,4 +1,6 @@
 *onnx*
 *[oO][nN][nN][xX]*
 
-build
+build/
+venv/
+dump.json

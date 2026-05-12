@@ -264,6 +264,7 @@ void mac::get_metrics(mac_metrics_t& metrics)
     metrics.cc_info[cc].cc_rach_counter = detected_rachs[cc];
     metrics.cc_info[cc].pci             = (cc < cell_config.size()) ? cell_config[cc].cell.id : 0;
   }
+  scheduler.metrics_read(metrics);
 }
 
 void mac::toggle_padding()
