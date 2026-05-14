@@ -21,6 +21,7 @@
 
 #include "srsenb/hdr/stack/mac/schedulers/sched_time_pf.h"
 #include <vector>
+#include <chrono>
 
 namespace srsenb {
 
@@ -87,16 +88,32 @@ void sched_time_pf::new_tti(sched_ue_list& ue_db, sf_sched* tti_sched)
 
 void sched_time_pf::sched_dl_users(sched_ue_list& ue_db, sf_sched* tti_sched)
 {
+  using clock = std::chrono::steady_clock;
+
+  auto total_start = clock::now();
   srsran::tti_point tti_rx{tti_sched->get_tti_rx()};
   if (current_tti_rx != tti_rx) {
     new_tti(ue_db, tti_sched);
   }
-
+  metrics_.ranker_time_us =
+    std::chrono::duration_cast<std::chrono::microseconds>(
+        clock::now() - total_start)
+        .count();
+  auto alloc_start = clock::now();
   while (not dl_queue.empty()) {
     ue_ctxt& ue = *dl_queue.top();
     ue.save_dl_alloc(try_dl_alloc(ue, *ue_db[ue.rnti], tti_sched), 0.01);
     dl_queue.pop();
   }
+  metrics_.allocation_time_us =
+    std::chrono::duration_cast<std::chrono::microseconds>(
+        clock::now() - alloc_start)
+        .count();
+
+  metrics_.total_sched_time_us =
+      std::chrono::duration_cast<std::chrono::microseconds>(
+          clock::now() - total_start)
+          .count();
 }
 
 uint32_t sched_time_pf::try_dl_alloc(ue_ctxt& ue_ctxt, sched_ue& ue, sf_sched* tti_sched)
