@@ -905,14 +905,19 @@ class DashboardApp:
                     label=f"UE {rnti}",
                 )
         if self.ue_cqi_histories:
-            self.cqi_ax.legend(loc="upper right", fontsize=8)
+            self.cqi_ax.legend(
+                loc="center left",
+                bbox_to_anchor=(1.01, 0.5),
+                fontsize=8,
+                frameon=True,
+            )
         self.cqi_ax.set_title("Динамика DL CQI", color=CLR_ACCENT)
         self.cqi_ax.set_ylabel("CQI", color=CLR_ACCENT)
         self.cqi_ax.grid(True, linestyle=":", alpha=0.7, color=CLR_ACCENT)
         self.cqi_ax.set_facecolor(CLR_SURFACE)
         self.cqi_ax.set_ylim(0, 15.5)  # CQI диапазон 0-15
 
-        self.figure2.tight_layout(pad=2.0)
+        self.figure2.tight_layout(rect=[0, 0, 0.82, 1], pad=2.0)
         self.canvas2.draw_idle()
 
     # ------------------------------------------------------------------
