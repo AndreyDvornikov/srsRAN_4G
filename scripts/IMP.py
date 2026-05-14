@@ -595,8 +595,6 @@ class DashboardApp:
 
     def _update_general_metrics(self, mac: dict):
         jfi = to_number(mac.get("jfi"))
-        if jfi is not None:
-            self.jfi_history.append(jfi)
 
         num_ues = self._parse_int_metric(mac.get("num_ues"), 0)
         runtime_us = self._parse_int_metric(mac.get("scheduler_runtime_us"), 0)
