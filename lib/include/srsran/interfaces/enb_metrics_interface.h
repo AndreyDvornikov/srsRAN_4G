@@ -74,6 +74,9 @@ struct mac_metrics_t {
     float                         prb_util             = 0.0f;
     uint32_t                      nof_prb              = 0;
     std::vector<cc_info_t>        cc_info;
+    uint64_t last_ranker_time_us;
+    uint64_t last_allocation_time_us;
+    uint64_t last_total_sched_time_us;
 };
 
 struct rlc_metrics_t {

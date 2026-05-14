@@ -28,6 +28,7 @@
 #include "srsenb/hdr/stack/mac/sched_carrier.h"
 #include "srsenb/hdr/stack/mac/sched_helpers.h"
 #include "srsran/srslog/srslog.h"
+#include "srsenb/hdr/stack/mac/schedulers/sched_time_onnx_ranker.h"
 
 #define Console(fmt, ...) srsran::console(fmt, ##__VA_ARGS__)
 #define Error(fmt, ...) srslog::fetch_basic_logger("MAC").error(fmt, ##__VA_ARGS__)
@@ -444,6 +445,17 @@ void sched::metrics_read(mac_metrics_t& metrics)
   metrics.scheduler_runtime_us = last_scheduler_runtime_us;
   metrics.nof_prb = sched_cell_params.empty() ? 0 : sched_cell_params[0].nof_prb();
   metrics.prb_util = last_prb_util_tti;
+  // Собираем тайминги напрямую из планировщиков сот
+  uint64_t max_ranker = 0, max_alloc = 0, max_total = 0;
+  for (auto& cc_ptr : carrier_schedulers) {
+      auto& cc = *cc_ptr;
+      max_ranker = std::max(max_ranker, cc.last_ranker_time_us);
+      max_alloc = std::max(max_alloc, cc.last_allocation_time_us);
+      max_total = std::max(max_total, cc.last_total_sched_time_us);
+  }
+  metrics.last_ranker_time_us     = max_ranker;
+  metrics.last_allocation_time_us = max_alloc;
+  metrics.last_total_sched_time_us = max_total;
 }
 
 // Common way to access ue_db elements in a read locking way

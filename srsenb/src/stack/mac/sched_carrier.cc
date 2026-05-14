@@ -460,6 +460,13 @@ const cc_sched_result& sched::carrier_sched::generate_tti_result(tti_point tti_r
   log_phich_cc_results(logger, enb_cc_idx, cc_result->ul_sched_result);
   if (cc_cfg != nullptr) {
       last_prb_util_tti = static_cast<double>(cc_result->dl_mask.count()) / cc_result->dl_mask.size();
+      if (sched_algo) {
+        const auto& metrics = sched_algo->metrics();
+
+        last_ranker_time_us      = metrics.ranker_time_us;
+        last_allocation_time_us  = metrics.allocation_time_us;
+        last_total_sched_time_us = metrics.total_sched_time_us;
+      }
   }
   return *cc_result;
 }

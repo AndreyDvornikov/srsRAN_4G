@@ -112,6 +112,9 @@ DECLARE_METRIC("num_ues", metric_mac_num_ues, uint32_t, "");
 DECLARE_METRIC("scheduler_runtime_us", metric_scheduler_runtime_us, uint64_t, "");
 DECLARE_METRIC("prb_util", metric_prb_util, float, "");
 DECLARE_METRIC("nof_prb", metric_nof_prb, uint32_t, "");
+DECLARE_METRIC("ranker_time_us", metric_ranker_time_us, uint64_t, "");
+DECLARE_METRIC("allocation_time_us", metric_allocation_time_us, uint64_t, "");
+DECLARE_METRIC("total_sched_time_us", metric_total_sched_time_us, uint64_t, "");
 DECLARE_METRIC_SET("mac_ue_container",
                    mset_mac_ue_container,
                    metric_mac_rnti,
@@ -135,7 +138,7 @@ DECLARE_METRIC_SET("mac_ue_container",
                    metric_dl_avg_rate,
                    metric_harq_retx_pending);
 DECLARE_METRIC_LIST("ue_list", mlist_mac_ues, std::vector<mset_mac_ue_container>);
-DECLARE_METRIC_SET("mac", mset_mac_container, metric_mac_jfi, metric_mac_num_ues, metric_scheduler_runtime_us, metric_prb_util, metric_nof_prb, mlist_mac_ues);
+DECLARE_METRIC_SET("mac", mset_mac_container, metric_mac_jfi, metric_mac_num_ues, metric_scheduler_runtime_us, metric_prb_util, metric_nof_prb, mlist_mac_ues, metric_ranker_time_us, metric_allocation_time_us, metric_total_sched_time_us);
 /// Cell container metrics.
 DECLARE_METRIC("carrier_id", metric_carrier_id, uint32_t, "");
 DECLARE_METRIC("pci", metric_pci, uint32_t, "");
@@ -396,6 +399,9 @@ void metrics_json::set_metrics(const enb_metrics_t& m, const uint32_t period_use
   mac_container.write<metric_scheduler_runtime_us>(m.stack.mac.scheduler_runtime_us);
   mac_container.write<metric_prb_util>(m.stack.mac.prb_util);
   mac_container.write<metric_nof_prb>(m.stack.mac.nof_prb);
+  mac_container.write<metric_ranker_time_us>(m.stack.mac.last_ranker_time_us);
+  mac_container.write<metric_allocation_time_us>(m.stack.mac.last_allocation_time_us);
+  mac_container.write<metric_total_sched_time_us>(m.stack.mac.last_total_sched_time_us);
 
   auto& mac_ue_list = mac_container.get<mlist_mac_ues>();
   mac_ue_list.resize(m.stack.mac.ues.size());

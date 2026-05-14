@@ -425,6 +425,25 @@ class DashboardApp:
         canvas2_widget.configure(bg=CLR_BG, borderwidth=1, relief="solid")
         canvas2_widget.pack(fill=tk.BOTH, expand=True)
 
+        # Вкладка 3: ML (тайминги ONNX-ранкера)
+        tab3 = ttk.Frame(self.notebook)
+        self.notebook.add(tab3, text="ML")
+        self.ml_ranker_var = tk.StringVar(value="N/A")
+        self.ml_alloc_var  = tk.StringVar(value="N/A")
+        self.ml_total_var  = tk.StringVar(value="N/A")
+        ttk.Label(tab3, text="Время работы ONNX-ранкера:", font=("Segoe UI", 10)).grid(
+            row=0, column=0, sticky="w", padx=10, pady=5)
+        ttk.Label(tab3, textvariable=self.ml_ranker_var, font=("Segoe UI", 10, "bold")).grid(
+            row=0, column=1, sticky="w", padx=10)
+        ttk.Label(tab3, text="Время аллокации ресурсов:", font=("Segoe UI", 10)).grid(
+            row=1, column=0, sticky="w", padx=10, pady=5)
+        ttk.Label(tab3, textvariable=self.ml_alloc_var, font=("Segoe UI", 10, "bold")).grid(
+            row=1, column=1, sticky="w", padx=10)
+        ttk.Label(tab3, text="Общее время планирования:", font=("Segoe UI", 10)).grid(
+            row=2, column=0, sticky="w", padx=10, pady=5)
+        ttk.Label(tab3, textvariable=self.ml_total_var, font=("Segoe UI", 10, "bold")).grid(
+            row=2, column=1, sticky="w", padx=10)
+
         # Авторская подпись
         author_frame = ttk.Frame(self.root)
         author_frame.grid(row=2, column=0, sticky="ew", padx=10, pady=(0, 5))
@@ -487,6 +506,20 @@ class DashboardApp:
         mac = metrics.get("mac")
         if not isinstance(mac, dict):
             return
+        
+        # Обновление таймингов для вкладки ML
+        if "ranker_time_us" in mac:
+            self.ml_ranker_var.set(f"{mac['ranker_time_us']:.1f} µs")
+        else:
+            self.ml_ranker_var.set("N/A")
+        if "allocation_time_us" in mac:
+            self.ml_alloc_var.set(f"{mac['allocation_time_us']:.1f} µs")
+        else:
+            self.ml_alloc_var.set("N/A")
+        if "total_sched_time_us" in mac:
+            self.ml_total_var.set(f"{mac['total_sched_time_us']:.1f} µs")
+        else:
+            self.ml_total_var.set("N/A")
 
         latency_map = extract_latency_map(metrics)
 
