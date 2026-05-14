@@ -167,6 +167,12 @@ public:
   bool pusch_enabled(tti_point tti_rx, uint32_t enb_cc_idx, bool needs_pdcch) const;
   bool phich_enabled(tti_point tti_rx, uint32_t enb_cc_idx) const;
 
+  float get_last_dl_prio() const { return last_dl_prio; }
+  float get_last_ul_prio() const { return last_ul_prio; }
+
+  void set_last_dl_prio(float v) { last_dl_prio = v; }
+  void set_last_ul_prio(float v) { last_ul_prio = v; }
+
 private:
   void finalize_dl_metric_tti();
   void update_dl_hol_state(uint32_t curr_buffer);
@@ -247,6 +253,8 @@ private:
   uint32_t current_tti_dl_aggr    = 0;
   std::deque<uint32_t> dl_tti_bytes_window;
   uint64_t             dl_window_bytes_sum = 0;
+  float last_dl_prio = 0.0f;
+  float last_ul_prio = 0.0f;
   srsran::optional<std::chrono::steady_clock::time_point> dl_hol_ts;
   float                                                   dl_latency_ms = 0.0f;
   uint32_t                                                last_dl_buffer = 0;

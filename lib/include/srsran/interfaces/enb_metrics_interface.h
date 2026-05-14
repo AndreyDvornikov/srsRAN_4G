@@ -69,6 +69,11 @@ struct mac_ue_metrics_t {
 struct mac_metrics_t {
     std::vector<mac_ue_metrics_t> ues;
     float                         jfi                  = 0.0f;
+    float                         avg_dl_prio          = 0.0f;
+    float                         max_dl_prio          = 0.0f;
+
+    float                         avg_ul_prio          = 0.0f;
+    float                         max_ul_prio          = 0.0f;
     uint32_t                      num_ues              = 0;
     uint64_t                      scheduler_runtime_us = 0;
     float                         prb_util             = 0.0f;

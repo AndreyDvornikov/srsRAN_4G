@@ -119,6 +119,11 @@ protected:
   uint32_t          last_num_ues              = 0;
   uint64_t          last_scheduler_runtime_us = 0;
   double last_prb_util_tti = 0.0;
+  float last_avg_dl_prio = 0.0f;
+  float last_max_dl_prio = 0.0f;
+
+  float last_avg_ul_prio = 0.0f;
+  float last_max_ul_prio = 0.0f;
   std::mutex        sched_mutex;
   bool              configured;
 };

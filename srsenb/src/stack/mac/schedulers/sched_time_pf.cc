@@ -215,6 +215,7 @@ void sched_time_pf::ue_ctxt::new_tti(const sched_cell_params_t& cell, sched_ue& 
     float r = ue.get_expected_dl_bitrate(cell.enb_cc_idx) / 8;
     float R = dl_avg_rate();
     dl_prio = (R != 0) ? r / pow(R, fairness_coeff) : (r == 0 ? 0 : std::numeric_limits<float>::max());
+    ue.set_last_dl_prio(dl_prio);
   }
 
   // Calculate UL priority
@@ -226,6 +227,7 @@ void sched_time_pf::ue_ctxt::new_tti(const sched_cell_params_t& cell, sched_ue& 
     float r = ue.get_expected_ul_bitrate(cell.enb_cc_idx) / 8;
     float R = ul_avg_rate();
     ul_prio = (R != 0) ? r / pow(R, fairness_coeff) : (r == 0 ? 0 : std::numeric_limits<float>::max());
+    ue.set_last_ul_prio(ul_prio);
   }
 }
 

@@ -19,3 +19,7 @@ sudo ip netns add ue1
 sudo ip netns add ue2
 sudo ip netns add ue3
 sudo ip netns add ue4
+
+sudo ip netns exec ue1 nc -zu 172.16.0.1 9999
+sudo ip netns exec ue2 nc -zu 172.16.0.1 9999
+sudo ip netns exec ue3 nc -zu 172.16.0.1 9999

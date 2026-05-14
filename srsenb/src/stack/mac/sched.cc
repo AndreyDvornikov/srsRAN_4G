@@ -384,9 +384,30 @@ void sched::new_tti(tti_point tti_rx)
     double   sum_tput_bps    = 0.0;
     double   sum_sq_tput_bps = 0.0;
     uint32_t active_ues      = 0;
+    double   sum_dl_prio = 0.0;
+    double   max_dl_prio = 0.0;
+
+    double   sum_ul_prio = 0.0;
+    double   max_ul_prio = 0.0;
+
+    uint32_t dl_prio_ues = 0;
+    uint32_t ul_prio_ues = 0;
 
     for (const auto& ue_pair : ue_db) {
       const float ue_tput_bps = ue_pair.second->get_dl_window_throughput_bps();
+      const float dl_prio = ue_pair.second->get_last_dl_prio();
+      if (std::isfinite(dl_prio) && dl_prio > 0.0f) {
+        sum_dl_prio += dl_prio;
+        max_dl_prio = std::max(max_dl_prio, static_cast<double>(dl_prio));
+        dl_prio_ues++;
+      }
+
+      const float ul_prio = ue_pair.second->get_last_ul_prio();
+      if (std::isfinite(ul_prio) && ul_prio > 0.0f) {
+        sum_ul_prio += ul_prio;
+        max_ul_prio = std::max(max_ul_prio, static_cast<double>(ul_prio));
+        ul_prio_ues++;
+      }
       if (!std::isfinite(ue_tput_bps) || ue_tput_bps < 0.0f) {
         continue;
       }
@@ -398,6 +419,11 @@ void sched::new_tti(tti_point tti_rx)
     last_num_ues              = static_cast<uint32_t>(ue_db.size());
     last_scheduler_runtime_us = runtime_sum_us;
     last_jfi                  = 0.0f;
+    last_avg_dl_prio = 0.0f;
+    last_max_dl_prio = 0.0f;
+
+    last_avg_ul_prio = 0.0f;
+    last_max_ul_prio = 0.0f;
 
     if (active_ues > 0 && sum_tput_bps > 0.0 && sum_sq_tput_bps > 0.0) {
       const double denom = static_cast<double>(active_ues) * sum_sq_tput_bps;
@@ -410,6 +436,16 @@ void sched::new_tti(tti_point tti_rx)
       last_jfi = 0.0f;
     } else if (last_jfi > 1.0f) {
       last_jfi = 1.0f;
+    }
+
+    if (dl_prio_ues > 0) {
+      last_avg_dl_prio = static_cast<float>(sum_dl_prio / dl_prio_ues);
+      last_max_dl_prio = static_cast<float>(max_dl_prio);
+    }
+
+    if (ul_prio_ues > 0) {
+      last_avg_ul_prio = static_cast<float>(sum_ul_prio / ul_prio_ues);
+      last_max_ul_prio = static_cast<float>(max_ul_prio);
     }
 
     if (srslog::fetch_basic_logger("MAC").debug.enabled()) {
@@ -441,6 +477,11 @@ void sched::metrics_read(mac_metrics_t& metrics)
 {
   std::lock_guard<std::mutex> lock(sched_mutex);
   metrics.jfi                  = last_jfi;
+  metrics.avg_dl_prio = last_avg_dl_prio;
+  metrics.max_dl_prio = last_max_dl_prio;
+
+  metrics.avg_ul_prio = last_avg_ul_prio;
+  metrics.max_ul_prio = last_max_ul_prio;
   metrics.num_ues              = last_num_ues;
   metrics.scheduler_runtime_us = last_scheduler_runtime_us;
   metrics.nof_prb = sched_cell_params.empty() ? 0 : sched_cell_params[0].nof_prb();

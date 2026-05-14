@@ -361,6 +361,11 @@ class DashboardApp:
 
         self.general_values = {
             "JFI": tk.StringVar(value="0.000"),
+            "Avg DL Prio": tk.StringVar(value="N/A"),
+            "Max DL Prio": tk.StringVar(value="N/A"),
+
+            "Avg UL Prio": tk.StringVar(value="N/A"),
+            "Max UL Prio": tk.StringVar(value="N/A"),
             "UEs": tk.StringVar(value="0"),
             "Runtime": tk.StringVar(value="0 us"),
             "PRB Util": tk.StringVar(value="N/A"),
@@ -595,6 +600,11 @@ class DashboardApp:
 
     def _update_general_metrics(self, mac: dict):
         jfi = to_number(mac.get("jfi"))
+        avg_dl_prio = to_number(mac.get("avg_dl_prio"))
+        max_dl_prio = to_number(mac.get("max_dl_prio"))
+
+        avg_ul_prio = to_number(mac.get("avg_ul_prio"))
+        max_ul_prio = to_number(mac.get("max_ul_prio"))
 
         num_ues = self._parse_int_metric(mac.get("num_ues"), 0)
         runtime_us = self._parse_int_metric(mac.get("scheduler_runtime_us"), 0)
@@ -602,6 +612,21 @@ class DashboardApp:
         self.general_values["JFI"].set(f"{jfi:.3f}" if jfi is not None else "N/A")
         self.general_values["UEs"].set(str(num_ues))
         self.general_values["Runtime"].set(f"{runtime_us} us")
+        self.general_values["Avg DL Prio"].set(
+            f"{avg_dl_prio:.3f}" if avg_dl_prio is not None else "N/A"
+        )
+
+        self.general_values["Max DL Prio"].set(
+            f"{max_dl_prio:.3f}" if max_dl_prio is not None else "N/A"
+        )
+
+        self.general_values["Avg UL Prio"].set(
+            f"{avg_ul_prio:.3f}" if avg_ul_prio is not None else "N/A"
+        )
+
+        self.general_values["Max UL Prio"].set(
+            f"{max_ul_prio:.3f}" if max_ul_prio is not None else "N/A"
+        )
 
     def _update_aggregated_metrics(self, ue_list, latency_map):
         """Теперь возвращает также список словарей ue_data для повторного использования."""

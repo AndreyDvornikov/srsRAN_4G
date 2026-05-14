@@ -108,6 +108,11 @@ DECLARE_METRIC("dl_retx_flag", metric_mac_dl_retx_flag, bool, "");
 DECLARE_METRIC("dl_aggr_level", metric_mac_dl_aggr_level, uint32_t, "");
 DECLARE_METRIC("dl_alloc_count", metric_mac_dl_alloc_count, uint32_t, "");
 DECLARE_METRIC("jfi", metric_mac_jfi, float, "");
+DECLARE_METRIC("avg_dl_prio", metric_avg_dl_prio, float, "");
+DECLARE_METRIC("max_dl_prio", metric_max_dl_prio, float, "");
+
+DECLARE_METRIC("avg_ul_prio", metric_avg_ul_prio, float, "");
+DECLARE_METRIC("max_ul_prio", metric_max_ul_prio, float, "");
 DECLARE_METRIC("num_ues", metric_mac_num_ues, uint32_t, "");
 DECLARE_METRIC("scheduler_runtime_us", metric_scheduler_runtime_us, uint64_t, "");
 DECLARE_METRIC("prb_util", metric_prb_util, float, "");
@@ -138,7 +143,7 @@ DECLARE_METRIC_SET("mac_ue_container",
                    metric_dl_avg_rate,
                    metric_harq_retx_pending);
 DECLARE_METRIC_LIST("ue_list", mlist_mac_ues, std::vector<mset_mac_ue_container>);
-DECLARE_METRIC_SET("mac", mset_mac_container, metric_mac_jfi, metric_mac_num_ues, metric_scheduler_runtime_us, metric_prb_util, metric_nof_prb, mlist_mac_ues, metric_ranker_time_us, metric_allocation_time_us, metric_total_sched_time_us);
+DECLARE_METRIC_SET("mac", mset_mac_container, metric_mac_jfi, metric_mac_num_ues, metric_scheduler_runtime_us, metric_avg_dl_prio, metric_max_dl_prio, metric_avg_ul_prio, metric_max_ul_prio, metric_prb_util, metric_nof_prb, mlist_mac_ues, metric_ranker_time_us, metric_allocation_time_us, metric_total_sched_time_us);
 /// Cell container metrics.
 DECLARE_METRIC("carrier_id", metric_carrier_id, uint32_t, "");
 DECLARE_METRIC("pci", metric_pci, uint32_t, "");
@@ -395,6 +400,11 @@ void metrics_json::set_metrics(const enb_metrics_t& m, const uint32_t period_use
 
   auto& mac_container = ctx.get<mset_mac_container>();
   mac_container.write<metric_mac_jfi>(m.stack.mac.jfi);
+  mac_container.write<metric_avg_dl_prio>(m.stack.mac.avg_dl_prio);
+  mac_container.write<metric_max_dl_prio>(m.stack.mac.max_dl_prio);
+
+  mac_container.write<metric_avg_ul_prio>(m.stack.mac.avg_ul_prio);
+  mac_container.write<metric_max_ul_prio>(m.stack.mac.max_ul_prio);
   mac_container.write<metric_mac_num_ues>(m.stack.mac.num_ues);
   mac_container.write<metric_scheduler_runtime_us>(m.stack.mac.scheduler_runtime_us);
   mac_container.write<metric_prb_util>(m.stack.mac.prb_util);
