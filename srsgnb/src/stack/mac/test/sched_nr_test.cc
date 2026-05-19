@@ -100,6 +100,8 @@ public:
   struct sched_ue_metrics {
     uint32_t nof_dl_txs = 0, nof_ul_txs = 0;
     uint64_t nof_dl_bytes = 0, nof_ul_bytes = 0;
+    float dl_prio = 0.0f;
+    float ul_prio = 0.0f;
   };
   std::map<uint16_t, sched_ue_metrics> ue_metrics;
 };

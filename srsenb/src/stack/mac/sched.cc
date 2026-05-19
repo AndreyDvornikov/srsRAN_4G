@@ -469,8 +469,13 @@ bool sched::is_generated(srsran::tti_point tti_rx, uint32_t enb_cc_idx) const
 
 int sched::metrics_read(uint16_t rnti, mac_ue_metrics_t& metrics)
 {
-  return ue_db_access_locked(
-      rnti, [&metrics](sched_ue& ue) { ue.metrics_read(metrics); }, "metrics_read");
+  return ue_db_access_locked(rnti, [&metrics](sched_ue& ue) {
+
+      metrics.dl_prio = ue.get_last_dl_prio();
+      metrics.ul_prio = ue.get_last_ul_prio();
+
+      return SRSRAN_SUCCESS;
+  });
 }
 
 void sched::metrics_read(mac_metrics_t& metrics)

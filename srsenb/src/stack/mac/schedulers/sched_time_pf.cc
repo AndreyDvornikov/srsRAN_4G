@@ -210,25 +210,27 @@ void sched_time_pf::ue_ctxt::new_tti(const sched_cell_params_t& cell, sched_ue& 
   // Calculate DL priority
   dl_retx_h  = get_dl_retx_harq(ue, tti_sched);
   dl_newtx_h = get_dl_newtx_harq(ue, tti_sched);
-  if (dl_retx_h != nullptr or dl_newtx_h != nullptr) {
-    // calculate DL PF priority
-    float r = ue.get_expected_dl_bitrate(cell.enb_cc_idx) / 8;
-    float R = dl_avg_rate();
-    dl_prio = (R != 0) ? r / pow(R, fairness_coeff) : (r == 0 ? 0 : std::numeric_limits<float>::max());
-    ue.set_last_dl_prio(dl_prio);
-  }
+  float r = ue.get_expected_dl_bitrate(cell.enb_cc_idx) / 8;
+  float R = dl_avg_rate();
+
+  dl_prio = (R != 0)
+                ? r / pow(R, fairness_coeff)
+                : (r == 0 ? 0 : std::numeric_limits<float>::max());
+
+  ue.set_last_dl_prio(dl_prio);
 
   // Calculate UL priority
   ul_h = get_ul_retx_harq(ue, tti_sched);
   if (ul_h == nullptr) {
     ul_h = get_ul_newtx_harq(ue, tti_sched);
   }
-  if (ul_h != nullptr) {
-    float r = ue.get_expected_ul_bitrate(cell.enb_cc_idx) / 8;
-    float R = ul_avg_rate();
-    ul_prio = (R != 0) ? r / pow(R, fairness_coeff) : (r == 0 ? 0 : std::numeric_limits<float>::max());
-    ue.set_last_ul_prio(ul_prio);
-  }
+  float ul_r = ue.get_expected_ul_bitrate(cell.enb_cc_idx) / 8;
+  float ul_R = ul_avg_rate();
+
+  ul_prio = (ul_R != 0)
+                ? ul_r / pow(ul_R, fairness_coeff)
+                : (ul_r == 0 ? 0 : std::numeric_limits<float>::max());
+  ue.set_last_ul_prio(ul_prio);
 }
 
 void sched_time_pf::ue_ctxt::save_dl_alloc(uint32_t alloc_bytes, float exp_avg_alpha)

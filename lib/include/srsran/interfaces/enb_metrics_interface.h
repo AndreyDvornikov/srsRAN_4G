@@ -52,18 +52,20 @@ struct mac_ue_metrics_t {
     float    phr                = 0.0f;
     uint32_t ul_buffer          = 0;
     uint32_t cc_idx             = 0;
-    uint32_t nof_tti            = 0;   // было нужно ранее
-    // новые поля
+    uint32_t nof_tti            = 0;  
     uint32_t pci                = 0;
     float    dl_ri              = 0.0f;
     float    dl_pmi             = 0.0f;
-    int      rx_brate           = 0;   // обратите внимание: int, а не uint32_t (используется сложение с tbs*8)
+    int      rx_brate           = 0;   
     int      tx_brate           = 0;
     uint32_t dl_mcs_samples = 0;
     uint32_t ul_mcs_samples = 0;
     float pusch_sinr = 0.0f;
     float pucch_sinr = 0.0f;
     float ul_rssi = 0.0f;
+    float dl_prio = 0.0f;
+    float ul_prio = 0.0f;
+    
 };
 
 struct mac_metrics_t {

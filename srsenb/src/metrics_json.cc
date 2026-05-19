@@ -95,6 +95,8 @@ DECLARE_METRIC_SET("ue_container",
 
 DECLARE_METRIC("rnti", metric_mac_rnti, uint32_t, "");
 DECLARE_METRIC("dl_prb", metric_mac_dl_prb, uint32_t, "");
+DECLARE_METRIC("dl_prio", metric_mac_dl_prio, float, "");
+DECLARE_METRIC("ul_prio", metric_mac_ul_prio, float, "");
 DECLARE_METRIC("ul_prb", metric_mac_ul_prb, uint32_t, "");
 DECLARE_METRIC("bsr", metric_mac_bsr, uint32_t, "");
 DECLARE_METRIC("dl_throughput", metric_mac_dl_throughput, float, "");
@@ -129,6 +131,8 @@ DECLARE_METRIC_SET("mac_ue_container",
                    metric_mac_dl_prb,
                    metric_mac_ul_prb,
                    metric_mac_bsr,
+                   metric_mac_dl_prio,
+                   metric_mac_ul_prio,
                    metric_mac_dl_throughput,
                    metric_mac_ul_throughput,
                    metric_mac_dl_latency,
@@ -324,6 +328,8 @@ static void fill_mac_metrics(mset_mac_ue_container& ue, const mac_ue_metrics_t& 
   ue.write<metric_ul_mcs>(mac_ue.ul_mcs);
   ue.write<metric_mac_dl_prb>(mac_ue.dl_prb);
   ue.write<metric_mac_ul_prb>(mac_ue.ul_prb);
+  ue.write<metric_mac_dl_prio>(mac_ue.dl_prio);
+  ue.write<metric_mac_ul_prio>(mac_ue.ul_prio);
   ue.write<metric_mac_bsr>(mac_ue.bsr);
   ue.write<metric_mac_dl_throughput>(mac_ue.dl_throughput);
   ue.write<metric_mac_ul_throughput>(mac_ue.ul_throughput);

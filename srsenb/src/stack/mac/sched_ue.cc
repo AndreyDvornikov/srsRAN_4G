@@ -341,9 +341,24 @@ void sched_ue::update_dl_hol_state(uint32_t curr_buffer)
 
 void sched_ue::reset_metrics()
 {
-  sched_metrics      = {};
+  const float old_dl_prio = sched_metrics.dl_prio;
+  const float old_ul_prio = sched_metrics.ul_prio;
+
+  const float old_dl_avg_rate = sched_metrics.dl_avg_rate;
+  const uint32_t old_expected_bitrate = sched_metrics.expected_bitrate;
+
+  sched_metrics = {};
+
   sched_metrics.rnti = rnti;
+
   sched_metrics.dl_latency = dl_latency_ms;
+
+  // preserve PF state
+  sched_metrics.dl_prio = old_dl_prio;
+  sched_metrics.ul_prio = old_ul_prio;
+
+  sched_metrics.dl_avg_rate = old_dl_avg_rate;
+  sched_metrics.expected_bitrate = old_expected_bitrate;
 }
 
 void sched_ue::save_dl_metrics(uint32_t enb_cc_idx, const rbgmask_t& user_mask, int mcs)
