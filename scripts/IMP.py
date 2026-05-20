@@ -37,6 +37,34 @@ CLR_SURFACE = "#F5F5F5"
 CLR_ACCENT = "#30475E"
 CLR_ACCENT2 = "#F05454"
 
+# Таблица TBS для 1 PRB (3GPP TS 36.213 Table 7.1.7.2.1-1, индексы MCS 0..26)
+TBS_TABLE_1PRB = [
+    16, 32, 56, 88, 120, 152, 176, 208, 224, 256, 288, 328, 344, 376,
+    408, 440, 488, 520, 552, 584, 616, 648, 680, 712, 744, 776, 808
+]
+
+
+def estimate_prb_from_bitrate(bitrate_bps: float, mcs: float) -> Optional[float]:
+    """
+    Точно оценивает количество выделенных PRB по битрейту и MCS,
+    используя таблицу TBS для 1 PRB (3GPP TS 36.213).
+
+    :param bitrate_bps: Скорость передачи в бит/с (dl_bitrate).
+    :param mcs: Индекс MCS (дробный, будет округлён до ближайшего целого 0..26).
+    :return: Количество PRB (минимум 1) или None при некорректных данных.
+    """
+    if not bitrate_bps or not mcs or mcs <= 0:
+        return None
+    mcs_idx = int(round(mcs))
+    if mcs_idx < 0 or mcs_idx >= len(TBS_TABLE_1PRB):
+        return None
+    tbs_per_prb = TBS_TABLE_1PRB[mcs_idx]  # бит на 1 PRB за 1 мс
+    if tbs_per_prb == 0:
+        return None
+    # bitrate = tbs_per_prb * prb_count * 1000 (т.к. длительность подкадра 1 мс)
+    prb = bitrate_bps / (tbs_per_prb * 1000.0)
+    return max(1.0, prb)
+
 
 def to_number(value):
     """Безопасно преобразует переданное значение в float.
@@ -610,10 +638,9 @@ class DashboardApp:
                     raw["dl_cqi"] = to_number(cell_ue.get("dl_cqi"))
 
             if raw["dl_prb"] == 0 and raw["dl_throughput"] > 0 and raw["dl_mcs"] > 0:
-                se_per_hz = 0.2 + raw["dl_mcs"] * 0.2
-                raw["dl_prb"] = raw["dl_throughput"] / (PRB_BANDWIDTH_HZ * se_per_hz)
-                if raw["dl_prb"] < 1:
-                    raw["dl_prb"] = 1
+                estimated_prb = estimate_prb_from_bitrate(raw["dl_throughput"], raw["dl_mcs"])
+                if estimated_prb is not None:
+                    raw["dl_prb"] = estimated_prb
 
             required = ("dl_throughput", "dl_bler", "dl_mcs", "dl_prb")
             if any(raw[name] is None for name in required):
