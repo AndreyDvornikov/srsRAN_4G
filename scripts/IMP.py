@@ -8,11 +8,15 @@
 import json
 import math
 import os
+import shutil
+import subprocess
+import threading
+import time
 import tkinter as tk
 from collections import deque
 from dataclasses import dataclass
 from tkinter import ttk
-from typing import Optional
+from typing import Optional, Dict, List
 
 os.environ.setdefault("MPLCONFIGDIR", "/tmp/matplotlib")
 
@@ -21,14 +25,11 @@ matplotlib.use("TkAgg")
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from matplotlib.figure import Figure
 
-# --------------------------------------------------------------------------
-# Конфигурация
-# --------------------------------------------------------------------------
 SNR_FILE = "/tmp/snr"
 DEFAULT_METRICS_FILE = "/tmp/enb_report.json"
 MAX_POINTS = 100
 UPDATE_MS = 100
-PRB_BANDWIDTH_HZ = 180000.0
+PRB_BANDWIDTH_HZ = 10 * 10**6
 MOVING_AVG_WINDOW = 5
 CDF_MAX_SAMPLES = 10000
 
@@ -37,7 +38,6 @@ CLR_SURFACE = "#F5F5F5"
 CLR_ACCENT = "#30475E"
 CLR_ACCENT2 = "#F05454"
 
-# Таблица TBS для 1 PRB (3GPP TS 36.213 Table 7.1.7.2.1-1, индексы MCS 0..26)
 TBS_TABLE_1PRB = [
     16, 32, 56, 88, 120, 152, 176, 208, 224, 256, 288, 328, 344, 376,
     408, 440, 488, 520, 552, 584, 616, 648, 680, 712, 744, 776, 808
@@ -45,35 +45,21 @@ TBS_TABLE_1PRB = [
 
 
 def estimate_prb_from_bitrate(bitrate_bps: float, mcs: float) -> Optional[float]:
-    """
-    Точно оценивает количество выделенных PRB по битрейту и MCS,
-    используя таблицу TBS для 1 PRB (3GPP TS 36.213).
-
-    :param bitrate_bps: Скорость передачи в бит/с (dl_bitrate).
-    :param mcs: Индекс MCS (дробный, будет округлён до ближайшего целого 0..26).
-    :return: Количество PRB (минимум 1) или None при некорректных данных.
-    """
-    if not bitrate_bps or not mcs or mcs <= 0:
+    """Приближённо оценивает количество PRB для single-layer передачи."""
+    if bitrate_bps is None or mcs is None or mcs < 0:
         return None
     mcs_idx = int(round(mcs))
     if mcs_idx < 0 or mcs_idx >= len(TBS_TABLE_1PRB):
         return None
-    tbs_per_prb = TBS_TABLE_1PRB[mcs_idx]  # бит на 1 PRB за 1 мс
+    tbs_per_prb = TBS_TABLE_1PRB[mcs_idx]
     if tbs_per_prb == 0:
         return None
-    # bitrate = tbs_per_prb * prb_count * 1000 (т.к. длительность подкадра 1 мс)
     prb = bitrate_bps / (tbs_per_prb * 1000.0)
     return max(1.0, prb)
 
 
 def to_number(value):
-    """Безопасно преобразует переданное значение в float.
-
-    :param value: Исходное значение (может быть None).
-    :type  value: any
-    :return: Число с плавающей точкой или None, если преобразование невозможно.
-    :rtype:  float или None
-    """
+    """Безопасно преобразует переданное значение в float."""
     if value is None:
         return None
     try:
@@ -86,27 +72,15 @@ def to_number(value):
 
 
 def is_active_ue(prb, bsr, dl_buffer, dl_throughput):
-    """Проверяет, активен ли UE по ключевым метрикам.
-
-    :param prb: Число выделенных PRB.
-    :param bsr: Buffer Status Report.
-    :param dl_buffer: Объём данных в DL-буфере.
-    :param dl_throughput: Текущая DL-пропускная способность.
-    :return: True, если хотя бы один параметр больше нуля.
-    :rtype:  bool
-    """
+    """Проверяет, активен ли UE по ключевым метрикам."""
     return any(v is not None and v > 0 for v in (prb, bsr, dl_buffer, dl_throughput))
 
 
 def jain(xs):
-    """Вычисляет индекс справедливости Джайна.
-
-    :param xs: Последовательность значений (например, пропускная способность UE).
-    :type  xs: iterable
-    :return: Индекс Джайна от 0 до 1.
-    :rtype:  float
-    """
-    active = [x for x in xs if x is not None and x > 0]
+    """Вычисляет индекс справедливости Джайна."""
+    if not xs:
+        return 0.0
+    active = [x for x in xs if x is not None]
     if not active:
         return 0.0
     total = sum(active)
@@ -117,13 +91,7 @@ def jain(xs):
 
 
 def moving_average(data, window_size=MOVING_AVG_WINDOW):
-    """Применяет простое скользящее среднее к последовательности.
-
-    :param data: Исходные данные.
-    :param window_size: Размер окна усреднения.
-    :return: Сглаженная последовательность; None на месте пропусков.
-    :rtype:  list
-    """
+    """Применяет простое скользящее среднее к последовательности."""
     smoothed = []
     for idx, value in enumerate(data):
         if value is None:
@@ -136,13 +104,7 @@ def moving_average(data, window_size=MOVING_AVG_WINDOW):
 
 
 def extract_json_blocks(buffer: str):
-    """Извлекает завершённые JSON-объекты из строкового буфера.
-
-    :param buffer: Строка, возможно содержащая несколько JSON-объектов.
-    :type  buffer: str
-    :return: Кортеж (список JSON-строк, остаток буфера).
-    :rtype:  (list, str)
-    """
+    """Извлекает завершённые JSON-объекты из строкового буфера."""
     blocks = []
     depth = 0
     start = None
@@ -173,13 +135,7 @@ def extract_json_blocks(buffer: str):
 
 
 def extract_latency_map(metrics: dict) -> dict:
-    """Строит словарь {rnti: dl_latency} на основе метрик.
-
-    :param metrics: Словарь метрик, как в enb_report.json.
-    :type  metrics: dict
-    :return: Словарь задержек по RNTI.
-    :rtype:  dict
-    """
+    """Строит словарь {rnti: dl_latency} на основе метрик."""
     latency_map = {}
     for cell in metrics.get("cell_list", []):
         ue_list = cell.get("ue_list") or cell.get("cell_container", {}).get("ue_list", [])
@@ -201,19 +157,11 @@ class FileMetricsSource:
     """Читает последний полный JSON-объект из файла метрик."""
 
     def __init__(self, path: str):
-        """
-        :param path: Путь к файлу с метриками (например, /tmp/enb_report.json).
-        """
         self.path = path
         self.offset = 0
         self.partial = ""
 
     def read_latest(self) -> Optional[dict]:
-        """Возвращает последний доступный JSON-объект или None.
-
-        :return: Словарь метрик либо None, если данных нет.
-        :rtype:  dict или None
-        """
         try:
             stat = os.stat(self.path)
         except OSError:
@@ -244,7 +192,6 @@ class FileMetricsSource:
 
 @dataclass
 class AggregatedUEMetrics:
-    """Агрегированные метрики по всем UE."""
     count: int = 0
     avg_dl_throughput: Optional[float] = None
     avg_dl_bler: Optional[float] = None
@@ -257,14 +204,106 @@ class AggregatedUEMetrics:
     avg_dl_latency: Optional[float] = None
 
 
+def compute_python_metrics(metrics: dict) -> dict:
+    """Вычисляет агрегированные python-метрики для одного среза."""
+    mac = metrics.get("mac", {})
+    cell_list = metrics.get("cell_list", [])
+
+    # Извлекаем данные по UE
+    cell_ue_map = {}
+    for cell in cell_list:
+        for ue_entry in cell.get("cell_container", {}).get("ue_list", []):
+            ue_c = ue_entry.get("ue_container", {})
+            rnti = ue_c.get("ue_rnti")
+            if rnti is not None:
+                cell_ue_map[int(rnti)] = ue_c
+
+    ue_data = []
+    for entry in mac.get("ue_list", []):
+        c = entry.get("mac_ue_container") or entry.get("ue_container", {})
+        if not c:
+            continue
+        rnti = to_number(c.get("rnti"))
+        if rnti is None:
+            continue
+        raw = {
+            "dl_throughput": to_number(c.get("dl_throughput")),
+            "dl_bler": to_number(c.get("dl_bler")),
+            "dl_mcs": to_number(c.get("dl_mcs")),
+            "dl_prb": to_number(c.get("dl_prb")),
+            "dl_buffer": to_number(c.get("dl_buffer")),
+        }
+        cell_ue = cell_ue_map.get(int(rnti))
+        if cell_ue:
+            if raw["dl_throughput"] == 0:
+                dl_bitrate = to_number(cell_ue.get("dl_bitrate"))
+                if dl_bitrate:
+                    raw["dl_throughput"] = dl_bitrate
+            if raw["dl_mcs"] == 0:
+                dl_mcs = to_number(cell_ue.get("dl_mcs"))
+                if dl_mcs:
+                    raw["dl_mcs"] = dl_mcs
+            if raw["dl_bler"] == 0:
+                dl_bler = to_number(cell_ue.get("dl_bler"))
+                if dl_bler is not None:
+                    raw["dl_bler"] = dl_bler
+
+        if raw["dl_prb"] == 0 and raw["dl_throughput"] is not None and raw["dl_mcs"] is not None \
+                and raw["dl_throughput"] > 0 and raw["dl_mcs"] >= 0:
+            estimated = estimate_prb_from_bitrate(raw["dl_throughput"], raw["dl_mcs"])
+            if estimated is not None:
+                raw["dl_prb"] = estimated
+
+        if any(raw[k] is None for k in ("dl_throughput", "dl_bler", "dl_mcs", "dl_prb")):
+            continue
+        ue_data.append(raw)
+
+    count = len(ue_data)
+    if count == 0:
+        return {
+            "ue_count": 0,
+            "avg_dl_throughput_bps": 0,
+            "avg_dl_bler_pct": 0,
+            "avg_dl_mcs": 0,
+            "total_dl_prb": 0,
+            "total_dl_buffer": 0,
+            "avg_se_bps_per_hz": 0,
+            "jfi": 0
+        }
+
+    throughputs = [d["dl_throughput"] for d in ue_data]
+    blers = [d["dl_bler"] for d in ue_data]
+    mcses = [d["dl_mcs"] for d in ue_data]
+    prbs = [d["dl_prb"] for d in ue_data]
+    buffers = [d["dl_buffer"] for d in ue_data]
+
+    avg_throughput = sum(throughputs) / count
+    avg_bler = sum(blers) / count
+    avg_mcs = sum(mcses) / count
+    total_prb = sum(prbs)
+    total_buffer = sum(b for b in buffers if b is not None)
+    total_throughput = sum(throughputs)
+
+    se = total_throughput / (PRB_BANDWIDTH_HZ)
+
+    jfi_val = jain(throughputs)
+
+    return {
+        "ue_count": count,
+        "avg_dl_throughput_bps": round(avg_throughput, 1),
+        "avg_dl_bler_pct": round(avg_bler, 3),
+        "avg_dl_mcs": round(avg_mcs, 1),
+        "total_dl_prb": round(total_prb, 1),
+        "total_dl_buffer": int(total_buffer),
+        "avg_se_bps_per_hz": round(se, 3),
+        "jfi": round(jfi_val, 4)
+    }
+
+
 class DashboardApp:
     """Главное приложение для визуализации метрик планировщика."""
 
     def __init__(self, root: tk.Tk, metrics_path: str):
-        """
-        :param root: Корневое Tk-окно.
-        :param metrics_path: Путь к файлу метрик.
-        """
         self.root = root
         self.source = FileMetricsSource(metrics_path)
         self._configure_styles()
@@ -283,19 +322,24 @@ class DashboardApp:
         self.last_valid_values: dict[int, dict] = {}
         self.last_dl_prio_list = []
         self._prio_labels: list[tk.Label] = []
+        self.exp_running = False
+        self.exp_process = None
+        self.exp_path_var = tk.StringVar(value="/home/avadik/srsRAN_Exp/PF_30sec_normal_50-0dB.json")
+        self.exp_time_var = tk.StringVar(value="30")
+        self.exp_progress_var = tk.DoubleVar(value=0.0)
 
         self._build_layout()
         self._set_initial_snr()
         self._schedule_update()
 
     def _configure_styles(self):
-        """Настраивает стили виджетов ttk."""
         style = ttk.Style(self.root)
         style.theme_use("clam")
         style.configure(".", background=CLR_BG, foreground=CLR_SURFACE, fieldbackground=CLR_BG, font=("Segoe UI", 10))
         style.configure("TLabel", background=CLR_BG, foreground=CLR_SURFACE)
         style.configure("TLabelframe", background=CLR_BG, foreground=CLR_SURFACE, bordercolor=CLR_ACCENT,
                         lightcolor=CLR_ACCENT, darkcolor=CLR_ACCENT, relief="solid")
+        style.configure("Visible.TEntry", insertcolor=CLR_SURFACE)
         style.configure("TLabelframe.Label", background=CLR_BG, foreground=CLR_SURFACE, font=("Segoe UI", 10, "bold"))
         style.configure("TFrame", background=CLR_BG)
         style.configure("TScale", background=CLR_BG, troughcolor=CLR_ACCENT, sliderlength=20)
@@ -304,7 +348,6 @@ class DashboardApp:
         style.configure("Logo.TLabel", background=CLR_BG, foreground=CLR_ACCENT2, font=("Segoe UI", 18, "bold"))
 
     def _build_layout(self):
-        """Создаёт все элементы графического интерфейса."""
         self.root.columnconfigure(0, weight=1)
         self.root.rowconfigure(1, weight=1)
 
@@ -329,8 +372,12 @@ class DashboardApp:
         content.columnconfigure(1, weight=1)
         content.rowconfigure(0, weight=1)
 
-        nav = ttk.LabelFrame(content, text="Вкладки", padding=8)
-        nav.grid(row=0, column=0, sticky="nsw", padx=(0, 8))
+        left_panel = ttk.Frame(content)
+        left_panel.grid(row=0, column=0, sticky="nsw", padx=(0, 8))
+        left_panel.rowconfigure(0, weight=1)
+
+        nav = ttk.LabelFrame(left_panel, text="Вкладки", padding=8)
+        nav.grid(row=0, column=0, sticky="ns")
 
         self.tab_list = tk.Listbox(nav, exportselection=False, width=24, height=5,
                                    bg=CLR_BG, fg=CLR_SURFACE,
@@ -341,6 +388,30 @@ class DashboardApp:
         self.tab_list.insert(tk.END, "General")
         self.tab_list.insert(tk.END, "UEs")
         self.tab_list.bind("<<ListboxSelect>>", self._on_tab_change)
+
+        exp_frame = ttk.LabelFrame(left_panel, text="Эксперимент", padding=10)
+        exp_frame.grid(row=1, column=0, sticky="ew", pady=(8, 0))
+        exp_frame.columnconfigure(0, weight=1)
+
+        ttk.Label(exp_frame, text="Файл:").grid(row=0, column=0, sticky="w")
+        self.exp_file_entry = ttk.Entry(exp_frame, textvariable=self.exp_path_var, width=22, style="Visible.TEntry")
+        self.exp_file_entry.grid(row=0, column=1, columnspan=2, sticky="ew", padx=5)
+
+        ttk.Label(exp_frame, text="Длит. (с):").grid(row=1, column=0, sticky="w")
+        self.exp_time_entry = ttk.Entry(exp_frame, textvariable=self.exp_time_var, width=8, style="Visible.TEntry")
+        self.exp_time_entry.grid(row=1, column=1, sticky="w", padx=5)
+
+        self.exp_start_btn = ttk.Button(exp_frame, text="Старт", command=self._start_experiment)
+        self.exp_start_btn.grid(row=2, column=0, padx=5, pady=(8, 2), sticky="w")
+
+        self.exp_cancel_btn = ttk.Button(exp_frame, text="Отмена", command=self._cancel_experiment, state=tk.DISABLED)
+        self.exp_cancel_btn.grid(row=2, column=1, padx=5, pady=(8, 2), sticky="w")
+
+        self.exp_status_var = tk.StringVar(value="Готов")
+        ttk.Label(exp_frame, textvariable=self.exp_status_var).grid(row=3, column=0, columnspan=2, sticky="w", pady=(2, 0))
+
+        self.progress = ttk.Progressbar(exp_frame, variable=self.exp_progress_var, maximum=100, mode='determinate')
+        self.progress.grid(row=4, column=0, columnspan=2, sticky="ew", pady=(6, 0))
 
         right = ttk.Frame(content)
         right.grid(row=0, column=1, sticky="nsew")
@@ -379,7 +450,7 @@ class DashboardApp:
             "Total DL Buffer": tk.StringVar(),
             "Total DL RETX Count": tk.StringVar(),
             "Avg DL Agg Level": tk.StringVar(),
-            "Avg Spectral Eff.": tk.StringVar(),
+            "Approx. Spectral Eff.": tk.StringVar(),
             "Avg DL Latency": tk.StringVar(),
         }
         for i, (name, var) in enumerate(self.ue_fields.items()):
@@ -444,8 +515,123 @@ class DashboardApp:
         self._show_general()
         self._redraw_plots()
 
+    def _start_experiment(self):
+        if self.exp_running:
+            return
+        path = self.exp_path_var.get().strip()
+        if not path:
+            self.exp_status_var.set("Укажите путь")
+            return
+        try:
+            duration = float(self.exp_time_var.get())
+        except ValueError:
+            self.exp_status_var.set("Неверная длительность")
+            return
+        if duration <= 0:
+            self.exp_status_var.set("Длительность > 0")
+            return
+
+        try:
+            with open(DEFAULT_METRICS_FILE, "w") as f:
+                f.truncate(0)
+        except OSError:
+            pass
+
+        self.exp_running = True
+        self.exp_start_btn.config(state=tk.DISABLED)
+        self.exp_cancel_btn.config(state=tk.NORMAL)
+        self.exp_status_var.set("Запуск iperf...")
+        self.exp_progress_var.set(0.0)
+
+        threading.Thread(target=self._experiment_thread, args=(path, duration), daemon=True).start()
+
+    def _cancel_experiment(self):
+        if not self.exp_running:
+            return
+        self.exp_running = False
+        self.exp_start_btn.config(state=tk.NORMAL)
+        self.exp_cancel_btn.config(state=tk.DISABLED)
+        if self.exp_process and self.exp_process.poll() is None:
+            self.exp_process.terminate()
+        self.exp_status_var.set("Отменено")
+        self.exp_progress_var.set(0.0)
+
+    def _experiment_thread(self, path, duration):
+        try:
+            self.exp_process = subprocess.Popen(
+                ["./iperf.sh", str(int(duration))],
+                cwd=os.path.dirname(__file__),
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL
+            )
+        except Exception:
+            self.exp_process = None
+
+        start_time = time.time()
+        deadline = start_time + duration
+
+        while time.time() < deadline and self.exp_running:
+            elapsed = time.time() - start_time
+            progress = min(100.0, (elapsed / duration) * 100.0)
+            self.root.after(0, lambda p=progress: self._update_progress(p))
+            time.sleep(0.2)
+
+        if self.exp_running and self.exp_process and self.exp_process.poll() is None:
+            self.exp_process.terminate()
+            try:
+                self.exp_process.wait(timeout=2)
+            except subprocess.TimeoutExpired:
+                self.exp_process.kill()
+
+        if self.exp_running:
+            self.root.after(0, lambda: self._finalize_experiment(path, duration))
+        else:
+            self.root.after(0, lambda: self._update_progress(0.0))
+            self.root.after(0, lambda: self.exp_status_var.set("Отменено"))
+        self.exp_running = False
+
+    def _update_progress(self, value):
+        self.exp_progress_var.set(value)
+
+    def _finalize_experiment(self, path, duration):
+        try:
+            with open(DEFAULT_METRICS_FILE, "r", encoding="utf-8") as src:
+                raw_data = src.read()
+        except Exception as e:
+            self.exp_status_var.set(f"Ошибка чтения: {e}")
+            self._reset_exp_ui()
+            return
+
+        blocks, _ = extract_json_blocks(raw_data)
+        if not blocks:
+            self.exp_status_var.set("Нет данных")
+            self._reset_exp_ui()
+            return
+
+        try:
+            with open(path, "w", encoding="utf-8") as out:
+                for block in blocks:
+                    out.write(block + "\n")
+                    try:
+                        metrics = json.loads(block)
+                        py_metrics = compute_python_metrics(metrics)
+                        out.write(json.dumps({"python_metrics": py_metrics}) + "\n")
+                    except Exception:
+                        out.write(json.dumps({"python_metrics": {"error": "invalid block"}}) + "\n")
+        except Exception as e:
+            self.exp_status_var.set(f"Ошибка записи: {e}")
+            self._reset_exp_ui()
+            return
+
+        self.exp_status_var.set(f"Сохранено: {path}")
+        self._reset_exp_ui()
+
+    def _reset_exp_ui(self):
+        self.exp_start_btn.config(state=tk.NORMAL)
+        self.exp_cancel_btn.config(state=tk.DISABLED)
+        self.exp_progress_var.set(0.0)
+
     def _on_tab_change(self, event=None):
-        """Обрабатывает переключение вкладок."""
         sel = self.tab_list.curselection()
         if not sel:
             return
@@ -456,18 +642,15 @@ class DashboardApp:
             self._show_ues()
 
     def _show_general(self):
-        """Показывает панель общих метрик."""
         self.ue_panel.grid_forget()
         self.general_panel.grid(row=0, column=0, sticky="w")
 
     def _show_ues(self):
-        """Показывает панель агрегированных метрик UE."""
         self.general_panel.grid_forget()
         self.ue_panel.grid(row=0, column=0, sticky="w")
         self._update_ue_panel_display()
 
     def _update_ue_panel_display(self):
-        """Обновляет текстовые метрики на панели UE."""
         agg = self.aggregated_metrics
         self.ue_fields["Avg DL Throughput"].set(self._format_metric(agg.avg_dl_throughput, 1))
         self.ue_fields["Avg DL BLER"].set(self._format_metric(agg.avg_dl_bler, 3))
@@ -476,11 +659,10 @@ class DashboardApp:
         self.ue_fields["Total DL Buffer"].set(str(int(agg.total_dl_buffer)))
         self.ue_fields["Total DL RETX Count"].set(str(agg.total_dl_retx_count))
         self.ue_fields["Avg DL Agg Level"].set(f"{agg.avg_dl_aggr_level:.1f}")
-        self.ue_fields["Avg Spectral Eff."].set(self._format_metric(agg.avg_se, 3, " bps/Hz"))
+        self.ue_fields["Approx. Spectral Eff."].set(self._format_metric(agg.avg_se, 3, " bps/Hz"))
         self.ue_fields["Avg DL Latency"].set(self._format_metric(agg.avg_dl_latency, 1, " ms"))
 
     def _poll_metrics(self):
-        """Основной цикл опроса и обновления метрик."""
         metrics = self.source.read_latest()
         if not metrics:
             return
@@ -519,18 +701,21 @@ class DashboardApp:
             else:
                 self.general_values["PRB Util"].set("N/A")
 
-        se_total = self._compute_se(total_throughput, total_prb)
+        se_total = self._compute_se(total_throughput)
         if se_total is not None:
             self.se_history.append(se_total)
 
         if avg_mcs is not None:
             self.mcs_history.append(avg_mcs)
 
+        backlogged_throughputs = [ue["dl_throughput"] for ue in ue_data_list
+                                  if (ue.get("dl_buffer") is not None and ue["dl_buffer"] > 0) or
+                                  (ue.get("bsr") is not None and ue["bsr"] > 0)]
+        computed_jfi = jain(backlogged_throughputs)
         jfi_raw = to_number(mac.get("jfi"))
         if jfi_raw is not None:
             self.jfi_history.append(jfi_raw)
         else:
-            computed_jfi = jain(active_throughputs)
             self.jfi_history.append(computed_jfi)
             self.general_values["JFI"].set(f"{computed_jfi:.3f}")
 
@@ -557,10 +742,6 @@ class DashboardApp:
             self._show_ues()
 
     def _update_general_metrics(self, mac: dict):
-        """Обновляет основные метрики (JFI, DL Prio, кол-во UE и т.д.).
-
-        :param mac: Секция ``mac`` из JSON метрик.
-        """
         jfi = to_number(mac.get("jfi"))
         avg_dl_prio = to_number(mac.get("avg_dl_prio"))
         max_dl_prio = to_number(mac.get("max_dl_prio"))
@@ -574,13 +755,6 @@ class DashboardApp:
         self.general_values["Max DL Prio"].set(f"{max_dl_prio:.3f}" if max_dl_prio is not None else "N/A")
 
     def _update_aggregated_metrics(self, ue_list, latency_map, cell_list):
-        """Обрабатывает список UE и агрегирует метрики.
-
-        :param ue_list: Список словарей с MAC-метриками UE.
-        :param latency_map: Словарь задержек по RNTI.
-        :param cell_list: Список сот с дополнительной информацией об UE.
-        :returns: Кортеж (active_throughputs, total_throughput, total_prb, avg_mcs, ue_data).
-        """
         active_throughputs = []
         total_throughput = 0.0
         total_prb = 0.0
@@ -596,16 +770,12 @@ class DashboardApp:
                     cell_ue_map[int(rnti)] = ue_c
 
         for entry in ue_list:
-            c = entry.get("mac_ue_container")
-            if c is None:
-                c = entry.get("ue_container", {})
+            c = entry.get("mac_ue_container") or entry.get("ue_container", {})
             if not c:
                 continue
-
             rnti = self._parse_int_metric(c.get("rnti"), 0)
             if not rnti:
                 continue
-
             raw = {
                 "rnti": rnti,
                 "dl_throughput": to_number(c.get("dl_throughput")),
@@ -637,7 +807,13 @@ class DashboardApp:
                 if raw["dl_cqi"] is None:
                     raw["dl_cqi"] = to_number(cell_ue.get("dl_cqi"))
 
-            if raw["dl_prb"] == 0 and raw["dl_throughput"] > 0 and raw["dl_mcs"] > 0:
+            if (
+                raw["dl_prb"] == 0
+                and raw["dl_throughput"] is not None
+                and raw["dl_mcs"] is not None
+                and raw["dl_throughput"] > 0
+                and raw["dl_mcs"] >= 0
+            ):
                 estimated_prb = estimate_prb_from_bitrate(raw["dl_throughput"], raw["dl_mcs"])
                 if estimated_prb is not None:
                     raw["dl_prb"] = estimated_prb
@@ -662,12 +838,13 @@ class DashboardApp:
                 "dl_mcs": dl_mcs,
                 "dl_prb": dl_prb,
                 "dl_buffer": dl_buffer,
+                "bsr": raw["bsr"],
                 "dl_retx_count": raw["dl_retx_count"],
                 "dl_aggr_level": raw["dl_aggr_level"],
                 "dl_latency": dl_latency,
                 "dl_cqi": raw["dl_cqi"],
                 "dl_prio": raw["dl_prio"],
-                "se": self._compute_se(dl_throughput, dl_prb),
+                "se": self._compute_se(dl_throughput),
             }
             ue_data.append(ue_info)
 
@@ -714,14 +891,6 @@ class DashboardApp:
         return active_throughputs, total_throughput, total_prb, avg_mcs, ue_data
 
     def _metric_with_last_valid(self, rnti, metric_name, value, active):
-        """Возвращает последнее валидное значение метрики, если текущее равно 0 и UE активен.
-
-        :param rnti: RNTI пользователя.
-        :param metric_name: Название метрики (ключ в словаре).
-        :param value: Текущее значение метрики.
-        :param active: Флаг активности UE.
-        :returns: Скорректированное значение.
-        """
         if value is None:
             return None
         ue_last = self.last_valid_values.setdefault(rnti, {})
@@ -733,43 +902,21 @@ class DashboardApp:
 
     @staticmethod
     def _parse_int_metric(value, default=0):
-        """Преобразует значение в целое число.
-
-        :param value: Исходное значение.
-        :param default: Значение по умолчанию, если преобразование не удалось.
-        :returns: Целочисленный результат.
-        """
         parsed = to_number(value)
         return default if parsed is None else int(parsed)
 
     @staticmethod
-    def _compute_se(total_throughput, total_prb):
-        """Вычисляет спектральную эффективность (bps/Hz).
-
-        :param total_throughput: Суммарная пропускная способность (бит/с).
-        :param total_prb: Суммарное количество PRB.
-        :returns: Спектральная эффективность или None, если недостаточно данных.
-        """
-        if total_prb is None or total_prb <= 0:
-            return None
+    def _compute_se(total_throughput, _total_prb=None):
         if total_throughput is None:
             return None
-        return total_throughput / (total_prb * PRB_BANDWIDTH_HZ)
+        return total_throughput / PRB_BANDWIDTH_HZ
 
     def _format_metric(self, value, digits=1, suffix=""):
-        """Форматирует число для отображения.
-
-        :param value: Числовое значение.
-        :param digits: Количество знаков после запятой.
-        :param suffix: Строка, добавляемая после числа (например, ' Mbps').
-        :returns: Отформатированная строка или 'N/A'.
-        """
         if value is None:
             return "N/A"
         return f"{value:.{digits}f}{suffix}"
 
     def _redraw_plots(self):
-        """Перерисовывает все графики."""
         self.jfi_ax.clear()
         self.se_ax.clear()
         self.mcs_ax.clear()
@@ -837,8 +984,6 @@ class DashboardApp:
                 x = [i for i in range(len(cqi_list))]
                 self.cqi_ax.plot(x, cqi_list, marker="o", markersize=3, linestyle="-",
                                  linewidth=1.0, label=f"UE {rnti}")
-        if self.ue_cqi_histories:
-            self.cqi_ax.legend(loc="center left", bbox_to_anchor=(1.01, 0.5), fontsize=8, frameon=True)
         self.cqi_ax.set_title("Динамика DL CQI", color=CLR_ACCENT)
         self.cqi_ax.set_ylabel("CQI", color=CLR_ACCENT)
         self.cqi_ax.grid(True, linestyle=":", alpha=0.7, color=CLR_ACCENT)
@@ -848,12 +993,10 @@ class DashboardApp:
         self.canvas2.draw_idle()
 
     def _schedule_update(self):
-        """Планирует следующий цикл опроса метрик."""
         self._poll_metrics()
         self.root.after(UPDATE_MS, self._schedule_update)
 
     def _set_initial_snr(self):
-        """Читает начальное значение SNR из файла."""
         try:
             with open(SNR_FILE, "r") as f:
                 value = float(f.read().strip())
@@ -864,7 +1007,6 @@ class DashboardApp:
             self.snr_label.config(text="20.0 dB")
 
     def _on_snr_change(self, *args):
-        """Обрабатывает изменение SNR слайдером."""
         val = self.snr_var.get()
         self.snr_label.config(text=f"{val:.1f} dB")
         try:
@@ -874,7 +1016,6 @@ class DashboardApp:
             pass
 
     def _update_prio_list_display(self):
-        """Обновляет цветную строку DL-приоритетов."""
         if not self.last_dl_prio_list:
             for lbl in self._prio_labels:
                 lbl.destroy()
