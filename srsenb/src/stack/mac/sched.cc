@@ -20,12 +20,15 @@
  */
 
 #include <srsenb/hdr/stack/mac/sched_ue.h>
+#include <cmath>
+#include <cinttypes>
 #include <string.h>
 
 #include "srsenb/hdr/stack/mac/sched.h"
 #include "srsenb/hdr/stack/mac/sched_carrier.h"
 #include "srsenb/hdr/stack/mac/sched_helpers.h"
 #include "srsran/srslog/srslog.h"
+#include "srsenb/hdr/stack/mac/schedulers/sched_time_onnx_ranker.h"
 
 #define Console(fmt, ...) srsran::console(fmt, ##__VA_ARGS__)
 #define Error(fmt, ...) srslog::fetch_basic_logger("MAC").error(fmt, ##__VA_ARGS__)
@@ -362,11 +365,99 @@ void sched::new_tti(tti_point tti_rx)
   last_tti = std::max(last_tti, tti_rx);
 
   // Generate sched results for all CCs, if not yet generated
+  uint64_t runtime_sum_us = 0;
   for (size_t cc_idx = 0; cc_idx < carrier_schedulers.size(); ++cc_idx) {
     if (not is_generated(tti_rx, cc_idx)) {
       // Generate carrier scheduling result
       carrier_schedulers[cc_idx]->generate_tti_result(tti_rx);
     }
+    runtime_sum_us += carrier_schedulers[cc_idx]->get_last_runtime_us();
+  }
+  // Aggregate PRB utilization across all carriers
+  double prb_util_sum = 0.0;
+  for (size_t cc_idx = 0; cc_idx < carrier_schedulers.size(); ++cc_idx) {
+    prb_util_sum += carrier_schedulers[cc_idx]->last_prb_util_tti;
+  }
+  last_prb_util_tti = carrier_schedulers.empty() ? 0.0 : prb_util_sum / carrier_schedulers.size();
+
+  if (last_metrics_tti != tti_rx) {
+    double   sum_tput_bps    = 0.0;
+    double   sum_sq_tput_bps = 0.0;
+    uint32_t active_ues      = 0;
+    double   sum_dl_prio = 0.0;
+    double   max_dl_prio = 0.0;
+
+    double   sum_ul_prio = 0.0;
+    double   max_ul_prio = 0.0;
+
+    uint32_t dl_prio_ues = 0;
+    uint32_t ul_prio_ues = 0;
+
+    for (const auto& ue_pair : ue_db) {
+      const float ue_tput_bps = ue_pair.second->get_dl_window_throughput_bps();
+      const float dl_prio = ue_pair.second->get_last_dl_prio();
+      if (std::isfinite(dl_prio) && dl_prio > 0.0f) {
+        sum_dl_prio += dl_prio;
+        max_dl_prio = std::max(max_dl_prio, static_cast<double>(dl_prio));
+        dl_prio_ues++;
+      }
+
+      const float ul_prio = ue_pair.second->get_last_ul_prio();
+      if (std::isfinite(ul_prio) && ul_prio > 0.0f) {
+        sum_ul_prio += ul_prio;
+        max_ul_prio = std::max(max_ul_prio, static_cast<double>(ul_prio));
+        ul_prio_ues++;
+      }
+      if (!std::isfinite(ue_tput_bps) || ue_tput_bps < 0.0f) {
+        continue;
+      }
+      active_ues++;
+      sum_tput_bps += ue_tput_bps;
+      sum_sq_tput_bps += static_cast<double>(ue_tput_bps) * static_cast<double>(ue_tput_bps);
+    }
+
+    last_num_ues              = static_cast<uint32_t>(ue_db.size());
+    last_scheduler_runtime_us = runtime_sum_us;
+    last_jfi                  = 0.0f;
+    last_avg_dl_prio = 0.0f;
+    last_max_dl_prio = 0.0f;
+
+    last_avg_ul_prio = 0.0f;
+    last_max_ul_prio = 0.0f;
+
+    if (active_ues > 0 && sum_tput_bps > 0.0 && sum_sq_tput_bps > 0.0) {
+      const double denom = static_cast<double>(active_ues) * sum_sq_tput_bps;
+      if (denom > 0.0) {
+        last_jfi = static_cast<float>((sum_tput_bps * sum_tput_bps) / denom);
+      }
+    }
+
+    if (!std::isfinite(last_jfi) || last_jfi < 0.0f) {
+      last_jfi = 0.0f;
+    } else if (last_jfi > 1.0f) {
+      last_jfi = 1.0f;
+    }
+
+    if (dl_prio_ues > 0) {
+      last_avg_dl_prio = static_cast<float>(sum_dl_prio / dl_prio_ues);
+      last_max_dl_prio = static_cast<float>(max_dl_prio);
+    }
+
+    if (ul_prio_ues > 0) {
+      last_avg_ul_prio = static_cast<float>(sum_ul_prio / ul_prio_ues);
+      last_max_ul_prio = static_cast<float>(max_ul_prio);
+    }
+
+    if (srslog::fetch_basic_logger("MAC").debug.enabled()) {
+      srslog::fetch_basic_logger("MAC").debug(
+          "SCHED: Global metrics tti=%u jfi=%.4f num_ues=%u runtime_us=%" PRIu64,
+          tti_rx.to_uint(),
+          last_jfi,
+          last_num_ues,
+          last_scheduler_runtime_us);
+    }
+
+    last_metrics_tti = tti_rx;
   }
 }
 
@@ -378,8 +469,39 @@ bool sched::is_generated(srsran::tti_point tti_rx, uint32_t enb_cc_idx) const
 
 int sched::metrics_read(uint16_t rnti, mac_ue_metrics_t& metrics)
 {
-  return ue_db_access_locked(
-      rnti, [&metrics](sched_ue& ue) { ue.metrics_read(metrics); }, "metrics_read");
+  return ue_db_access_locked(rnti, [&metrics](sched_ue& ue) {
+
+      metrics.dl_prio = ue.get_last_dl_prio();
+      metrics.ul_prio = ue.get_last_ul_prio();
+
+      return SRSRAN_SUCCESS;
+  });
+}
+
+void sched::metrics_read(mac_metrics_t& metrics)
+{
+  std::lock_guard<std::mutex> lock(sched_mutex);
+  metrics.jfi                  = last_jfi;
+  metrics.avg_dl_prio = last_avg_dl_prio;
+  metrics.max_dl_prio = last_max_dl_prio;
+
+  metrics.avg_ul_prio = last_avg_ul_prio;
+  metrics.max_ul_prio = last_max_ul_prio;
+  metrics.num_ues              = last_num_ues;
+  metrics.scheduler_runtime_us = last_scheduler_runtime_us;
+  metrics.nof_prb = sched_cell_params.empty() ? 0 : sched_cell_params[0].nof_prb();
+  metrics.prb_util = last_prb_util_tti;
+  // Собираем тайминги напрямую из планировщиков сот
+  uint64_t max_ranker = 0, max_alloc = 0, max_total = 0;
+  for (auto& cc_ptr : carrier_schedulers) {
+      auto& cc = *cc_ptr;
+      max_ranker = std::max(max_ranker, cc.last_ranker_time_us);
+      max_alloc = std::max(max_alloc, cc.last_allocation_time_us);
+      max_total = std::max(max_total, cc.last_total_sched_time_us);
+  }
+  metrics.last_ranker_time_us     = max_ranker;
+  metrics.last_allocation_time_us = max_alloc;
+  metrics.last_total_sched_time_us = max_total;
 }
 
 // Common way to access ue_db elements in a read locking way

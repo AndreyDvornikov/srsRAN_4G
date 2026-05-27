@@ -53,6 +53,12 @@ public:
   //! Get a subframe result for a given tti
   const sf_sched_result* get_sf_result(tti_point tti_rx) const;
 
+  double   last_prb_util_tti = 0.0;
+  uint64_t last_ranker_time_us = 0;
+  uint64_t last_allocation_time_us = 0;
+  uint64_t last_total_sched_time_us = 0;
+  uint64_t get_last_runtime_us() const { return 0; } // заглушка (можно позже реализовать реальный замер времени)
+
 private:
   //! Compute DL scheduler result for given TTI
   void alloc_dl_users(sf_sched* tti_result);

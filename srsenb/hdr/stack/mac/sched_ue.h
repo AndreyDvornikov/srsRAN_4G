@@ -28,8 +28,11 @@
 #include "sched_ue_ctrl/tpc.h"
 #include "srsenb/hdr/common/common_enb.h"
 #include "srsenb/hdr/stack/mac/common/mac_metrics.h"
+#include "srsran/adt/optional.h"
 #include "srsran/srslog/srslog.h"
 #include <bitset>
+#include <chrono>
+#include <deque>
 #include <map>
 #include <vector>
 
@@ -84,6 +87,14 @@ public:
   uint32_t                  get_aggr_level(uint32_t enb_cc_idx, uint32_t nof_bits);
   void                      ul_buffer_add(uint8_t lcid, uint32_t bytes);
   void                      metrics_read(mac_ue_metrics_t& metrics);
+  void                      record_dl_sched_result(uint32_t enb_cc_idx,
+                                                   uint32_t pid,
+                                                   uint32_t tbs_bytes,
+                                                   uint32_t dl_prbs,
+                                                   uint32_t dl_mcs,
+                                                   bool     is_retx,
+                                                   uint32_t aggr_level);
+  float                     get_dl_window_throughput_bps() const;
 
   /*******************************************************
    * Functions used by scheduler metric objects
@@ -104,6 +115,11 @@ public:
   uint32_t get_pending_ul_old_data();
   uint32_t get_pending_ul_old_data(uint32_t enb_cc_idx);
   uint32_t get_expected_ul_bitrate(uint32_t enb_cc_idx, int nof_prbs = -1) const;
+  uint64_t dl_bytes_accum = 0;
+  uint64_t ul_bytes_accum = 0;
+  static constexpr uint32_t DL_METRIC_WINDOW_TTI = 100;
+  std::deque<uint8_t>       dl_bler_window;
+  uint32_t                  dl_bler_sum = 0;
 
   dl_harq_proc* get_pending_dl_harq(tti_point tti_tx_dl, uint32_t enb_cc_idx);
   dl_harq_proc* get_empty_dl_harq(tti_point tti_tx_dl, uint32_t enb_cc_idx);
@@ -151,7 +167,22 @@ public:
   bool pusch_enabled(tti_point tti_rx, uint32_t enb_cc_idx, bool needs_pdcch) const;
   bool phich_enabled(tti_point tti_rx, uint32_t enb_cc_idx) const;
 
+  float get_last_dl_prio() const { return sched_metrics.dl_prio; }
+  float get_last_ul_prio() const { return sched_metrics.ul_prio; }
+
+  void set_last_dl_prio(float v) { sched_metrics.dl_prio = v; }
+  void set_dl_prb(uint32_t prb) { sched_metrics.dl_prb = prb; }
+  void set_dl_mcs(float mcs) { sched_metrics.dl_mcs = mcs; }
+  void set_dl_throughput(float tput) { sched_metrics.dl_throughput = tput; }
+  void set_last_ul_prio(float v) { sched_metrics.ul_prio = v; }
+
 private:
+  void finalize_dl_metric_tti();
+  void update_dl_hol_state(uint32_t curr_buffer);
+  void reset_metrics();
+  void save_dl_metrics(uint32_t enb_cc_idx, const rbgmask_t& user_mask, int mcs);
+  void save_ul_metrics(uint32_t enb_cc_idx, prb_interval alloc, int mcs);
+
   bool is_sr_triggered();
 
   tbs_info allocate_new_dl_mac_pdu(sched_interface::dl_sched_data_t* data,
@@ -217,8 +248,21 @@ private:
 
   bool phy_config_dedicated_enabled = false;
 
+  uint32_t dl_alloc_count_total   = 0;
+  uint32_t current_tti_dl_bytes   = 0;
+  uint32_t current_tti_dl_prbs    = 0;
+  bool     current_tti_dl_retx    = false;
+  uint32_t current_tti_retx_count = 0;
+  uint32_t current_tti_dl_aggr    = 0;
+  std::deque<uint32_t> dl_tti_bytes_window;
+  uint64_t             dl_window_bytes_sum = 0;
+  srsran::optional<std::chrono::steady_clock::time_point> dl_hol_ts;
+  float                                                   dl_latency_ms = 0.0f;
+  uint32_t                                                last_dl_buffer = 0;
+
   tti_point                  current_tti;
   std::vector<sched_ue_cell> cells; ///< List of eNB cells that may be configured/activated/deactivated for the UE
+  mac_ue_metrics_t           sched_metrics = {};
 };
 
 using sched_ue_list = rnti_map_t<std::unique_ptr<sched_ue> >;

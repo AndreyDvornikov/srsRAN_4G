@@ -35,6 +35,9 @@ struct mac_metrics_t {
   int      ul_buffer;
   float    dl_retx_avg;
   float    ul_retx_avg;
+  double   last_ranker_time_us;
+  double   last_allocation_time_us;
+  double   last_total_sched_time_us;
 };
 
 } // namespace srsue

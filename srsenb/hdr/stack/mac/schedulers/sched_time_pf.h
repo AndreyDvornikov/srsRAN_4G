@@ -26,6 +26,7 @@
 #include "srsenb/hdr/common/common_enb.h"
 #include "srsran/adt/circular_map.h"
 #include <queue>
+#include <chrono>
 
 namespace srsenb {
 
@@ -37,6 +38,10 @@ public:
   sched_time_pf(const sched_cell_params_t& cell_params_, const sched_interface::sched_args_t& sched_args);
   void sched_dl_users(sched_ue_list& ue_db, sf_sched* tti_sched) override;
   void sched_ul_users(sched_ue_list& ue_db, sf_sched* tti_sched) override;
+  const scheduler_runtime_metrics& metrics() const override
+  {
+      return metrics_;
+  }
 
 private:
   void new_tti(sched_ue_list& ue_db, sf_sched* tti_sched);
@@ -45,7 +50,7 @@ private:
   float                      fairness_coeff = 1;
 
   srsran::tti_point current_tti_rx;
-
+  scheduler_runtime_metrics metrics_ = {};
   struct ue_ctxt {
     ue_ctxt(uint16_t rnti_, float fairness_coeff_) : rnti(rnti_), fairness_coeff(fairness_coeff_) {}
     float    dl_avg_rate() const { return dl_nof_samples == 0 ? 0 : dl_avg_rate_; }

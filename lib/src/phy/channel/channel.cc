@@ -22,6 +22,7 @@
 #include <cstdlib>
 #include <srsran/phy/channel/channel.h>
 #include <srsran/srsran.h>
+#include <fstream>
 
 using namespace srsran;
 
@@ -178,6 +179,16 @@ void channel::run(cf_t*                     in[SRSRAN_MAX_CHANNELS],
     if (hst) {
       srsran_channel_hst_execute(hst, buffer_in, buffer_out, len, &t);
       srsran_vec_sc_prod_ccc(buffer_out, local_cexpf(hst_init_phase), buffer_in, len);
+    }
+
+    // Динамическое управление SNR через файл
+    std::ifstream snr_file("/tmp/snr");
+    if (snr_file.is_open()) {
+        float snr_val;
+        if (snr_file >> snr_val) {
+            srsran_channel_awgn_set_n0(awgn, args.awgn_signal_power_dBfs - snr_val);
+        }
+        snr_file.close();
     }
 
     if (awgn) {

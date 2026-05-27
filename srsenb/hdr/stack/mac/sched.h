@@ -89,6 +89,7 @@ public:
   std::array<int, SRSRAN_MAX_CARRIERS> get_enb_ue_activ_cc_map(uint16_t rnti) final;
   int                                  ul_buffer_add(uint16_t rnti, uint32_t lcid, uint32_t bytes) final;
   int                                  metrics_read(uint16_t rnti, mac_ue_metrics_t& metrics);
+  void                                 metrics_read(mac_metrics_t& metrics);
 
   class carrier_sched;
 
@@ -113,6 +114,16 @@ protected:
   sched_result_ringbuffer sched_results;
 
   srsran::tti_point last_tti;
+  srsran::tti_point last_metrics_tti;
+  float             last_jfi                  = 0.0f;
+  uint32_t          last_num_ues              = 0;
+  uint64_t          last_scheduler_runtime_us = 0;
+  double last_prb_util_tti = 0.0;
+  float last_avg_dl_prio = 0.0f;
+  float last_max_dl_prio = 0.0f;
+
+  float last_avg_ul_prio = 0.0f;
+  float last_max_ul_prio = 0.0f;
   std::mutex        sched_mutex;
   bool              configured;
 };

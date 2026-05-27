@@ -25,6 +25,7 @@
 #include "srsenb/hdr/stack/mac/schedulers/sched_time_rr.h"
 #include "srsran/common/standard_streams.h"
 #include "srsran/common/string_helpers.h"
+#include "srsenb/hdr/stack/mac/schedulers/sched_time_onnx_ranker.h"
 #include "srsran/interfaces/enb_rrc_interface_mac.h"
 
 namespace srsenb {
@@ -376,8 +377,14 @@ void sched::carrier_sched::carrier_cfg(const sched_cell_params_t& cell_params_)
   // Setup data scheduling algorithms
   if (cell_params_.sched_cfg->sched_policy == "time_rr") {
     sched_algo.reset(new sched_time_rr{*cc_cfg, *cell_params_.sched_cfg});
+    std::cout << "Используется Round Robin\n";
     logger.info("Using time-domain RR scheduling policy for cc=%d", cc_cfg->enb_cc_idx);
+  } else if (cell_params_.sched_cfg->sched_policy == "time_onnx_ranker") {
+    std::cout << "Используется ONNX-ранкер\n";
+    sched_algo.reset(new sched_time_onnx_ranker{*cc_cfg, *cell_params_.sched_cfg});
+    logger.info("Using time-domain ONNX ranker scheduling policy for cc=%d", cc_cfg->enb_cc_idx);
   } else {
+    std::cout << "Используется Proportional Fair\n";
     sched_algo.reset(new sched_time_pf{*cc_cfg, *cell_params_.sched_cfg});
     logger.info("Using time-domain PF scheduling policy for cc=%d", cc_cfg->enb_cc_idx);
   }
@@ -451,7 +458,16 @@ const cc_sched_result& sched::carrier_sched::generate_tti_result(tti_point tti_r
 
   log_dl_cc_results(logger, enb_cc_idx, cc_result->dl_sched_result);
   log_phich_cc_results(logger, enb_cc_idx, cc_result->ul_sched_result);
+  if (cc_cfg != nullptr) {
+      last_prb_util_tti = static_cast<double>(cc_result->dl_mask.count()) / cc_result->dl_mask.size();
+      if (sched_algo) {
+        const auto& metrics = sched_algo->metrics();
 
+        last_ranker_time_us      = metrics.ranker_time_us;
+        last_allocation_time_us  = metrics.allocation_time_us;
+        last_total_sched_time_us = metrics.total_sched_time_us;
+      }
+  }
   return *cc_result;
 }
 

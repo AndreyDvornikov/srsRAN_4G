@@ -29,9 +29,6 @@ if(NOT Boost_FOUND)
     message(FATAL_ERROR "Boost required to compile srsENB")
 endif()
 
-########################################################################
-# Setup the include and linker paths
-########################################################################
 include_directories(
     ${Boost_INCLUDE_DIRS}
     ${SEC_INCLUDE_DIRS}
@@ -43,16 +40,43 @@ link_directories(
     ${SEC_LIBRARY_DIRS}
 )
 
-########################################################################
-# Add subdirectories
-########################################################################
+# Автоматический поиск ONNX Runtime (только поиск)
+find_path(ONNXRUNTIME_INCLUDE_DIR onnxruntime_cxx_api.h
+    HINTS $ENV{ONNXRUNTIME_DIR}/include
+          /usr/local/include/onnxruntime
+          /usr/local/include
+          /usr/include/onnxruntime
+          /usr/include
+    PATH_SUFFIXES onnxruntime core/session
+)
+
+find_library(ONNXRUNTIME_LIBRARY onnxruntime
+    HINTS $ENV{ONNXRUNTIME_DIR}/lib
+          /usr/local/lib
+          /usr/lib
+)
+
+if(ONNXRUNTIME_INCLUDE_DIR AND ONNXRUNTIME_LIBRARY)
+    message(STATUS "ONNX Runtime найден: ${ONNXRUNTIME_LIBRARY}, includes: ${ONNXRUNTIME_INCLUDE_DIR}")
+    include_directories(${ONNXRUNTIME_INCLUDE_DIR})
+else()
+    message(WARNING "ONNX Runtime не найден – сборка srsenb будет без onnx")
+    set(ONNXRUNTIME_LIBRARY "")   # обнуляем, чтобы не помешало
+endif()
+
 add_subdirectory(src)
 add_subdirectory(test)
 
-########################################################################
-# Default configuration files
-########################################################################
 install(FILES enb.conf.example DESTINATION ${DATA_DIR})
 install(FILES rb.conf.example  DESTINATION ${DATA_DIR})
 install(FILES rr.conf.example  DESTINATION ${DATA_DIR})
 install(FILES sib.conf.example DESTINATION ${DATA_DIR})
+
+# ====== Оригинальные определения, которые вы удалили ======
+
+set(SRSENB_SOURCES srsenb_phy srsenb_stack srsenb_common srsenb_s1ap srsenb_upper srsenb_mac srsenb_rrc srslog system)
+set(SRSRAN_SOURCES srsran_common srsran_mac srsran_phy srsran_gtpu srsran_rlc srsran_pdcp srsran_radio rrc_asn1 s1ap_asn1 enb_cfg_parser srslog support system)
+
+set(SRSENB_SOURCES ${SRSENB_SOURCES} srsgnb_stack srsgnb_ric srsgnb_ngap srsgnb_mac srsgnb_rrc)
+set(SRSRAN_SOURCES ${SRSRAN_SOURCES} rrc_nr_asn1 ngap_nr_asn1 ric_e2)
+# ========================================================

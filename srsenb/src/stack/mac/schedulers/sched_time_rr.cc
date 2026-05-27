@@ -20,6 +20,7 @@
  */
 
 #include "srsenb/hdr/stack/mac/schedulers/sched_time_rr.h"
+#include <chrono>
 
 namespace srsenb {
 
@@ -34,14 +35,31 @@ sched_time_rr::sched_time_rr(const sched_cell_params_t& cell_params_, const sche
 
 void sched_time_rr::sched_dl_users(sched_ue_list& ue_db, sf_sched* tti_sched)
 {
+  using clock = std::chrono::steady_clock;
+
+  auto total_start = clock::now();
   if (ue_db.empty()) {
     return;
   }
 
   // give priority in a time-domain RR basis.
   uint32_t priority_idx = tti_sched->get_tti_tx_dl().to_uint() % (uint32_t)ue_db.size();
+  metrics_.ranker_time_us =
+    std::chrono::duration_cast<std::chrono::microseconds>(
+        clock::now() - total_start)
+        .count();
+  auto alloc_start = clock::now();
   sched_dl_retxs(ue_db, tti_sched, priority_idx);
   sched_dl_newtxs(ue_db, tti_sched, priority_idx);
+  metrics_.allocation_time_us =
+    std::chrono::duration_cast<std::chrono::microseconds>(
+        clock::now() - alloc_start)
+        .count();
+
+  metrics_.total_sched_time_us =
+      std::chrono::duration_cast<std::chrono::microseconds>(
+          clock::now() - total_start)
+          .count();
 }
 
 void sched_time_rr::sched_dl_retxs(sched_ue_list& ue_db, sf_sched* tti_sched, size_t prio_idx)

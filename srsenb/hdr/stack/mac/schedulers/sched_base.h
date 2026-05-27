@@ -37,6 +37,17 @@ public:
 
   virtual void sched_dl_users(sched_ue_list& ue_db, sf_sched* tti_sched) = 0;
   virtual void sched_ul_users(sched_ue_list& ue_db, sf_sched* tti_sched) = 0;
+  struct scheduler_runtime_metrics {
+      uint64_t ranker_time_us      = 0;
+      uint64_t allocation_time_us  = 0;
+      uint64_t total_sched_time_us = 0;
+  };
+
+  virtual const scheduler_runtime_metrics& metrics() const
+  {
+      static scheduler_runtime_metrics empty{};
+      return empty;
+  }
 
 protected:
   srslog::basic_logger& logger = srslog::fetch_basic_logger("MAC");
