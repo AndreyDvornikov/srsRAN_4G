@@ -54,6 +54,7 @@ DECLARE_METRIC_SET("bearer_container",
 /// UE container metrics.
 DECLARE_METRIC("ue_rnti", metric_ue_rnti, uint32_t, "");
 DECLARE_METRIC("dl_cqi", metric_dl_cqi, float, "");
+DECLARE_METRIC("dl_snr", metric_dl_snr, float, "");
 DECLARE_METRIC("dl_mcs", metric_dl_mcs, float, "");
 DECLARE_METRIC("dl_bitrate", metric_dl_bitrate, float, "");
 DECLARE_METRIC("dl_bler", metric_dl_bler, float, "");
@@ -75,6 +76,7 @@ DECLARE_METRIC_SET("ue_container",
                    mset_ue_container,
                    metric_ue_rnti,
                    metric_dl_cqi,
+                   metric_dl_snr,
                    metric_dl_mcs,
                    metric_ul_pusch_rssi,
                    metric_ul_pucch_rssi,
@@ -126,6 +128,7 @@ DECLARE_METRIC_SET("mac_ue_container",
                    mset_mac_ue_container,
                    metric_mac_rnti,
                    metric_dl_cqi,
+                   metric_dl_snr,
                    metric_dl_mcs,
                    metric_ul_mcs,
                    metric_mac_dl_prb,
@@ -180,6 +183,8 @@ static void fill_ue_metrics(mset_ue_container& ue, const enb_metrics_t& m, unsig
 
   ue.write<metric_ue_rnti>(rnti);
   ue.write<metric_dl_cqi>(m.stack.mac.ues[i].dl_cqi);
+  float dl_snr = m.stack.mac.ues[i].dl_cqi * 0.5f - 7.0f;
+  ue.write<metric_dl_snr>(dl_snr);
 
   if (!std::isnan(m.phy[i].dl.mcs)) {
     ue.write<metric_dl_mcs>(m.phy[i].dl.mcs);
@@ -325,6 +330,8 @@ static void fill_mac_metrics(mset_mac_ue_container& ue, const mac_ue_metrics_t& 
   ue.write<metric_mac_rnti>(mac_ue.rnti);
   ue.write<metric_dl_cqi>(mac_ue.dl_cqi);
   ue.write<metric_dl_mcs>(mac_ue.dl_mcs);
+  float dl_snr = mac_ue.dl_cqi * 0.5f - 7.0f;
+  ue.write<metric_dl_snr>(dl_snr);
   ue.write<metric_ul_mcs>(mac_ue.ul_mcs);
   ue.write<metric_mac_dl_prb>(mac_ue.dl_prb);
   ue.write<metric_mac_ul_prb>(mac_ue.ul_prb);

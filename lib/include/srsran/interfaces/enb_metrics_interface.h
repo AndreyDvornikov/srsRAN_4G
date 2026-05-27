@@ -45,6 +45,7 @@ struct mac_ue_metrics_t {
     bool     harq_retx_pending  = false;
     float    dl_cqi_offset      = 0.0f;
     float    ul_snr_offset      = 0.0f;
+    float    dl_snr = 0.0f;
     uint32_t tx_pkts            = 0;
     uint32_t tx_errors          = 0;
     uint32_t rx_pkts            = 0;

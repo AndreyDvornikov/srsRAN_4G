@@ -183,6 +183,7 @@ class FileMetricsSource:
         blocks, self.partial = extract_json_blocks(self.partial + chunk)
         latest = None
         for block in blocks:
+            block = block.replace(': inf', ': null').replace(': -inf', ': null')
             try:
                 latest = json.loads(block)
             except json.JSONDecodeError:
@@ -327,6 +328,10 @@ class DashboardApp:
         self.exp_path_var = tk.StringVar(value="/home/avadik/srsRAN_Exp/PF_30sec_normal_50-0dB.json")
         self.exp_time_var = tk.StringVar(value="30")
         self.exp_progress_var = tk.DoubleVar(value=0.0)
+        self.snr_mode = tk.StringVar(value="manual")
+        self.snr_program: list[tuple[float, float]] = []
+        self.snr_program_active = False
+        self.iperf_limit_var = tk.StringVar(value="")
 
         self._build_layout()
         self._set_initial_snr()
@@ -353,19 +358,24 @@ class DashboardApp:
 
         control = ttk.LabelFrame(self.root, text="Параметры", padding=10)
         control.grid(row=0, column=0, sticky="ew", padx=10, pady=(10, 6))
-        control.columnconfigure(1, weight=1)
+        control.columnconfigure(5, weight=1)
 
         logo_label = ttk.Label(control, text="⚡ ИМП", style="Logo.TLabel")
         logo_label.grid(row=0, column=0, sticky="w", padx=(0, 20))
 
         ttk.Label(control, text="SNR (dB)").grid(row=0, column=1, sticky="w")
+        self.snr_mode_manual_rb = ttk.Radiobutton(control, text="Ручной", variable=self.snr_mode, value="manual", command=self._on_snr_mode_change)
+        self.snr_mode_manual_rb.grid(row=0, column=2, sticky="w", padx=(0, 10))
+        self.snr_mode_prog_rb = ttk.Radiobutton(control, text="Программа", variable=self.snr_mode, value="program", command=self._on_snr_mode_change)
+        self.snr_mode_prog_rb.grid(row=0, column=3, sticky="w")
+
         self.snr_var = tk.DoubleVar(value=20.0)
         self.snr_label = ttk.Label(control, text="20.0 dB", style="Accent.TLabel")
-        self.snr_label.grid(row=0, column=3, sticky="e", padx=(10, 0))
+        self.snr_label.grid(row=0, column=4, sticky="e", padx=(10, 0))
 
-        slider = ttk.Scale(control, from_=-10.0, to=50.0, variable=self.snr_var,
-                           command=self._on_snr_change, orient=tk.HORIZONTAL)
-        slider.grid(row=0, column=2, sticky="ew", padx=10)
+        self.slider = ttk.Scale(control, from_=-10.0, to=50.0, variable=self.snr_var,
+                                command=self._on_snr_change, orient=tk.HORIZONTAL)
+        self.slider.grid(row=0, column=5, sticky="ew", padx=10)
 
         content = ttk.Frame(self.root, padding=(10, 0, 10, 10))
         content.grid(row=1, column=0, sticky="nsew")
@@ -400,18 +410,21 @@ class DashboardApp:
         ttk.Label(exp_frame, text="Длит. (с):").grid(row=1, column=0, sticky="w")
         self.exp_time_entry = ttk.Entry(exp_frame, textvariable=self.exp_time_var, width=8, style="Visible.TEntry")
         self.exp_time_entry.grid(row=1, column=1, sticky="w", padx=5)
+        ttk.Label(exp_frame, text="Лимит iperf:").grid(row=2, column=0, sticky="w")
+        self.iperf_limit_entry = ttk.Entry(exp_frame, textvariable=self.iperf_limit_var, width=8, style="Visible.TEntry")
+        self.iperf_limit_entry.grid(row=2, column=1, sticky="w", padx=5)
 
         self.exp_start_btn = ttk.Button(exp_frame, text="Старт", command=self._start_experiment)
-        self.exp_start_btn.grid(row=2, column=0, padx=5, pady=(8, 2), sticky="w")
+        self.exp_start_btn.grid(row=3, column=0, padx=5, pady=(8, 2), sticky="w")
 
         self.exp_cancel_btn = ttk.Button(exp_frame, text="Отмена", command=self._cancel_experiment, state=tk.DISABLED)
-        self.exp_cancel_btn.grid(row=2, column=1, padx=5, pady=(8, 2), sticky="w")
+        self.exp_cancel_btn.grid(row=3, column=1, padx=5, pady=(8, 2), sticky="w")
 
         self.exp_status_var = tk.StringVar(value="Готов")
-        ttk.Label(exp_frame, textvariable=self.exp_status_var).grid(row=3, column=0, columnspan=2, sticky="w", pady=(2, 0))
+        ttk.Label(exp_frame, textvariable=self.exp_status_var).grid(row=4, column=0, columnspan=2, sticky="w", pady=(2, 0))
 
         self.progress = ttk.Progressbar(exp_frame, variable=self.exp_progress_var, maximum=100, mode='determinate')
-        self.progress.grid(row=4, column=0, columnspan=2, sticky="ew", pady=(6, 0))
+        self.progress.grid(row=5, column=0, columnspan=2, sticky="ew", pady=(6, 0))
 
         right = ttk.Frame(content)
         right.grid(row=0, column=1, sticky="nsew")
@@ -513,6 +526,7 @@ class DashboardApp:
         auth_label.pack(side=tk.RIGHT)
 
         self._show_general()
+        self._on_snr_mode_change()
         self._redraw_plots()
 
     def _start_experiment(self):
@@ -539,6 +553,8 @@ class DashboardApp:
 
         self.exp_running = True
         self.exp_start_btn.config(state=tk.DISABLED)
+        self.snr_mode_manual_rb.config(state=tk.DISABLED)
+        self.snr_mode_prog_rb.config(state=tk.DISABLED)
         self.exp_cancel_btn.config(state=tk.NORMAL)
         self.exp_status_var.set("Запуск iperf...")
         self.exp_progress_var.set(0.0)
@@ -555,11 +571,48 @@ class DashboardApp:
             self.exp_process.terminate()
         self.exp_status_var.set("Отменено")
         self.exp_progress_var.set(0.0)
+        self.snr_mode_manual_rb.config(state=tk.NORMAL)
+        self.snr_mode_prog_rb.config(state=tk.NORMAL)
+
+    def _on_snr_mode_change(self):
+        if self.snr_mode.get() == "manual":
+            self.slider.config(state=tk.NORMAL)
+            self.exp_time_entry.config(state=tk.NORMAL)
+            self.snr_program_active = False
+            self.snr_program = []
+        else:
+            self.slider.config(state=tk.DISABLED)
+            self.snr_program = [(60, 50), (60, 35), (60, 20)]
+            self.exp_time_var.set("180")
+            self.exp_time_entry.config(state=tk.DISABLED)
+            self.snr_program_active = False
+
+    def _snr_program_thread(self, start_time):
+        """Устанавливает SNR согласно фиксированной программе и обновляет отображение."""
+        current_offset = 0.0
+        for dur, snr_val in self.snr_program:
+            if not self.exp_running or not self.snr_program_active:
+                break
+            try:
+                with open(SNR_FILE, "w") as f:
+                    f.write(f"{snr_val:.2f}")
+            except OSError:
+                pass
+            self.root.after(0, lambda v=snr_val: self.snr_label.config(text=f"{v:.1f} dB"))
+            deadline = start_time + current_offset + dur
+            while time.time() < deadline and self.exp_running and self.snr_program_active:
+                time.sleep(0.2)
+            current_offset += dur
 
     def _experiment_thread(self, path, duration):
+        cmd = ["./iperf.sh", str(int(duration))]
+        limit = self.iperf_limit_var.get().strip()
+        if limit:
+            cmd.append(limit)
+
         try:
             self.exp_process = subprocess.Popen(
-                ["./iperf.sh", str(int(duration))],
+                cmd,
                 cwd=os.path.dirname(__file__),
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL
@@ -570,11 +623,19 @@ class DashboardApp:
         start_time = time.time()
         deadline = start_time + duration
 
+        if self.snr_mode.get() == "program" and self.snr_program:
+            self.snr_program_active = True
+            threading.Thread(target=self._snr_program_thread, args=(start_time,), daemon=True).start()
+        else:
+            self.snr_program_active = False
+
         while time.time() < deadline and self.exp_running:
             elapsed = time.time() - start_time
             progress = min(100.0, (elapsed / duration) * 100.0)
             self.root.after(0, lambda p=progress: self._update_progress(p))
             time.sleep(0.2)
+
+        self.snr_program_active = False
 
         if self.exp_running and self.exp_process and self.exp_process.poll() is None:
             self.exp_process.terminate()
@@ -630,6 +691,8 @@ class DashboardApp:
         self.exp_start_btn.config(state=tk.NORMAL)
         self.exp_cancel_btn.config(state=tk.DISABLED)
         self.exp_progress_var.set(0.0)
+        self.snr_mode_manual_rb.config(state=tk.NORMAL)
+        self.snr_mode_prog_rb.config(state=tk.NORMAL)
 
     def _on_tab_change(self, event=None):
         sel = self.tab_list.curselection()
