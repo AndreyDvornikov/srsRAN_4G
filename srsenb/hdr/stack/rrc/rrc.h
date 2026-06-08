@@ -41,6 +41,8 @@
 #include "srsran/interfaces/enb_x2_interfaces.h"
 #include "srsran/srslog/srslog.h"
 #include <map>
+#include <unordered_map>
+#include <vector>
 
 namespace srsenb {
 
@@ -143,6 +145,7 @@ public:
   void notify_pdcp_integrity_error(uint16_t rnti, uint32_t lcid) override;
 
   uint32_t get_nof_users();
+  uint32_t get_user_id(uint16_t rnti);
 
   // logging
   enum direction_t { Rx = 0, Tx, toS1AP, fromS1AP };
@@ -189,9 +192,23 @@ private:
   std::unique_ptr<freq_res_common_list>    cell_res_list;
   std::map<uint16_t, unique_rnti_ptr<ue> > users; // NOTE: has to have fixed addr
   std::unique_ptr<paging_manager>          pending_paging;
+  // === USER SLOT SYSTEM ===
+  struct user_slot_t {
+    uint32_t user_id = 0;
+    uint32_t m_tmsi  = 0;
+    uint8_t  mmec    = 0;
+    uint16_t rnti    = 0;
+    bool     active  = false;
+  };
+  std::vector<user_slot_t>               user_slots;
+  std::unordered_map<uint32_t, uint32_t> tmsi_to_slot_idx;
+  std::unordered_map<uint16_t, uint32_t> rnti_to_slot_idx;
+  // === END USER SLOT SYSTEM ===
 
   void     process_release_complete(uint16_t rnti);
   void     rem_user(uint16_t rnti);
+  void     assign_user_slot(uint16_t rnti, uint32_t m_tmsi, uint8_t mmec);
+  void     release_user_slot(uint16_t rnti);
   uint32_t generate_sibs();
   void     configure_mbsfn_sibs();
   int      pack_mcch();

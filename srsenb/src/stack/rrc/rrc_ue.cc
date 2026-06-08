@@ -110,6 +110,8 @@ rrc_state_t rrc::ue::get_state()
 
 void rrc::ue::get_metrics(rrc_ue_metrics_t& ue_metrics) const
 {
+  ue_metrics.rnti       = rnti;
+  ue_metrics.user_id    = parent->get_user_id(rnti);
   ue_metrics.state      = state;
   const auto& drb_list  = bearer_list.get_established_drbs();
   const auto& erab_list = bearer_list.get_erabs();
@@ -474,6 +476,7 @@ void rrc::ue::handle_rrc_con_req(rrc_conn_request_s* msg)
     mmec     = (uint8_t)msg_r8->ue_id.s_tmsi().mmec.to_number();
     m_tmsi   = (uint32_t)msg_r8->ue_id.s_tmsi().m_tmsi.to_number();
     has_tmsi = true;
+    parent->assign_user_slot(rnti, m_tmsi, mmec);
 
     // Make sure that the context does not already exist
     for (auto& user : parent->users) {
@@ -484,6 +487,8 @@ void rrc::ue::handle_rrc_con_req(rrc_conn_request_s* msg)
         break;
       }
     }
+  } else {
+    parent->assign_user_slot(rnti, 0, 0);
   }
 
   establishment_cause = msg_r8->establishment_cause;

@@ -53,6 +53,7 @@ DECLARE_METRIC_SET("bearer_container",
 
 /// UE container metrics.
 DECLARE_METRIC("ue_rnti", metric_ue_rnti, uint32_t, "");
+DECLARE_METRIC("user_id", metric_user_id, uint32_t, "");
 DECLARE_METRIC("dl_cqi", metric_dl_cqi, float, "");
 DECLARE_METRIC("dl_snr", metric_dl_snr, float, "");
 DECLARE_METRIC("dl_mcs", metric_dl_mcs, float, "");
@@ -75,6 +76,7 @@ DECLARE_METRIC_LIST("bearer_list", mlist_bearers, std::vector<mset_bearer_contai
 DECLARE_METRIC_SET("ue_container",
                    mset_ue_container,
                    metric_ue_rnti,
+                   metric_user_id,
                    metric_dl_cqi,
                    metric_dl_snr,
                    metric_dl_mcs,
@@ -127,6 +129,7 @@ DECLARE_METRIC("total_sched_time_us", metric_total_sched_time_us, uint64_t, "");
 DECLARE_METRIC_SET("mac_ue_container",
                    mset_mac_ue_container,
                    metric_mac_rnti,
+                   metric_user_id,
                    metric_dl_cqi,
                    metric_dl_snr,
                    metric_dl_mcs,
@@ -182,6 +185,7 @@ static void fill_ue_metrics(mset_ue_container& ue, const enb_metrics_t& m, unsig
   uint32_t rnti = m.stack.mac.ues[i].rnti;
 
   ue.write<metric_ue_rnti>(rnti);
+  ue.write<metric_user_id>(m.stack.rrc.ues[i].user_id);
   ue.write<metric_dl_cqi>(m.stack.mac.ues[i].dl_cqi);
   float dl_snr = m.stack.mac.ues[i].dl_cqi * 0.5f - 7.0f;
   ue.write<metric_dl_snr>(dl_snr);
@@ -325,9 +329,11 @@ static void fill_ue_metrics(mset_ue_container& ue, const enb_metrics_t& m, unsig
   }
 }
 
-static void fill_mac_metrics(mset_mac_ue_container& ue, const mac_ue_metrics_t& mac_ue)
+static void fill_mac_metrics(mset_mac_ue_container& ue, const enb_metrics_t& m, unsigned i)
 {
+  const mac_ue_metrics_t& mac_ue = m.stack.mac.ues[i];
   ue.write<metric_mac_rnti>(mac_ue.rnti);
+  ue.write<metric_user_id>(i < m.stack.rrc.ues.size() ? m.stack.rrc.ues[i].user_id : 0);
   ue.write<metric_dl_cqi>(mac_ue.dl_cqi);
   ue.write<metric_dl_mcs>(mac_ue.dl_mcs);
   float dl_snr = mac_ue.dl_cqi * 0.5f - 7.0f;
@@ -367,6 +373,9 @@ static bool has_valid_metric_ranges(const enb_metrics_t& m, unsigned index)
     return false;
   }
   if (index >= m.stack.pdcp.ues.size()) {
+    return false;
+  }
+  if (index >= m.stack.rrc.ues.size()) {
     return false;
   }
 
@@ -429,7 +438,10 @@ void metrics_json::set_metrics(const enb_metrics_t& m, const uint32_t period_use
   auto& mac_ue_list = mac_container.get<mlist_mac_ues>();
   mac_ue_list.resize(m.stack.mac.ues.size());
   for (unsigned i = 0; i != m.stack.mac.ues.size(); ++i) {
-    fill_mac_metrics(mac_ue_list[i], m.stack.mac.ues[i]);
+    if (!has_valid_metric_ranges(m, i)) {
+      continue;
+    }
+    fill_mac_metrics(mac_ue_list[i], m, i);
   }
 
   // Log the context.

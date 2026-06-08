@@ -718,12 +718,85 @@ void rrc::rem_user(uint16_t rnti)
 
     users.erase(rnti);
 
+    release_user_slot(rnti);
     srsran::console("Disconnecting rnti=0x%x.\n", rnti);
     logger.info("Removed user rnti=0x%x", rnti);
   } else {
     logger.error("Removing user rnti=0x%x (does not exist)", rnti);
   }
 }
+
+// === USER SLOT SYSTEM ===
+void rrc::assign_user_slot(uint16_t rnti, uint32_t m_tmsi, uint8_t mmec)
+{
+  if (m_tmsi == 0) {
+    user_slot_t slot;
+    slot.user_id = static_cast<uint32_t>(user_slots.size()) + 1;
+    slot.rnti    = rnti;
+    slot.active  = true;
+    user_slots.push_back(slot);
+    rnti_to_slot_idx[rnti] = static_cast<uint32_t>(user_slots.size()) - 1;
+    srsran::console("User %u connected (rnti=0x%x, no TMSI)\n", slot.user_id, rnti);
+    return;
+  }
+
+  auto it = tmsi_to_slot_idx.find(m_tmsi);
+  if (it != tmsi_to_slot_idx.end()) {
+    uint32_t idx = it->second;
+    if (idx < user_slots.size() && user_slots[idx].mmec == mmec) {
+      if (user_slots[idx].rnti != 0 && user_slots[idx].rnti != rnti) {
+        rnti_to_slot_idx.erase(user_slots[idx].rnti);
+      }
+      user_slots[idx].rnti   = rnti;
+      user_slots[idx].active = true;
+      rnti_to_slot_idx[rnti] = idx;
+      srsran::console(
+          "User %u reconnected (rnti=0x%x, m_tmsi=%u)\n", user_slots[idx].user_id, rnti, m_tmsi);
+      return;
+    }
+  }
+
+  user_slot_t slot;
+  slot.user_id = static_cast<uint32_t>(user_slots.size()) + 1;
+  slot.m_tmsi  = m_tmsi;
+  slot.mmec    = mmec;
+  slot.rnti    = rnti;
+  slot.active  = true;
+  user_slots.push_back(slot);
+  uint32_t idx             = static_cast<uint32_t>(user_slots.size()) - 1;
+  tmsi_to_slot_idx[m_tmsi] = idx;
+  rnti_to_slot_idx[rnti]   = idx;
+  srsran::console("User %u connected (rnti=0x%x, m_tmsi=%u)\n", slot.user_id, rnti, m_tmsi);
+}
+
+void rrc::release_user_slot(uint16_t rnti)
+{
+  auto it = rnti_to_slot_idx.find(rnti);
+  if (it == rnti_to_slot_idx.end()) {
+    return;
+  }
+
+  uint32_t idx = it->second;
+  if (idx < user_slots.size()) {
+    if (user_slots[idx].rnti == rnti) {
+      user_slots[idx].rnti   = 0;
+      user_slots[idx].active = false;
+      srsran::console("User %u slot reserved (rnti=0x%x disconnected)\n", user_slots[idx].user_id, rnti);
+    }
+  }
+
+  rnti_to_slot_idx.erase(rnti);
+}
+
+uint32_t rrc::get_user_id(uint16_t rnti)
+{
+  auto it = rnti_to_slot_idx.find(rnti);
+  if (it == rnti_to_slot_idx.end()) {
+    return 0;
+  }
+  return user_slots[it->second].user_id;
+}
+// === END USER SLOT SYSTEM ===
 
 void rrc::config_mac()
 {

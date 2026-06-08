@@ -205,6 +205,20 @@ class AggregatedUEMetrics:
     avg_dl_latency: Optional[float] = None
 
 
+USER_PANEL_FIELDS = [
+    ("User ID", "user_id"),
+    ("RNTI", "rnti"),
+    ("DL Throughput", "dl_throughput"),
+    ("DL BLER", "dl_bler"),
+    ("DL MCS", "dl_mcs"),
+    ("DL CQI", "dl_cqi"),
+    ("DL PRB", "dl_prb"),
+    ("DL Buffer", "dl_buffer"),
+    ("BSR", "bsr"),
+    ("DL Latency", "dl_latency"),
+]
+
+
 def compute_python_metrics(metrics: dict) -> dict:
     """Вычисляет агрегированные python-метрики для одного среза."""
     mac = metrics.get("mac", {})
@@ -323,6 +337,9 @@ class DashboardApp:
         self.last_valid_values: dict[int, dict] = {}
         self.last_dl_prio_list = []
         self._prio_labels: list[tk.Label] = []
+        self.user_metrics_by_id: dict[int, dict] = {}
+        self.user_tabs: dict[int, ttk.Frame] = {}
+        self.user_tab_vars: dict[int, dict[str, tk.StringVar]] = {}
         self.exp_running = False
         self.exp_process = None
         self.exp_path_var = tk.StringVar(value="/home/avadik/srsRAN_Exp/PF_30sec_normal_50-0dB.json")
@@ -397,6 +414,7 @@ class DashboardApp:
         self.tab_list.grid(row=0, column=0, sticky="ns")
         self.tab_list.insert(tk.END, "General")
         self.tab_list.insert(tk.END, "UEs")
+        self.tab_list.insert(tk.END, "Users")
         self.tab_list.bind("<<ListboxSelect>>", self._on_tab_change)
 
         exp_frame = ttk.LabelFrame(left_panel, text="Эксперимент", padding=10)
@@ -469,6 +487,15 @@ class DashboardApp:
         for i, (name, var) in enumerate(self.ue_fields.items()):
             ttk.Label(self.ue_panel, text=name).grid(row=i, column=0, sticky="w")
             ttk.Label(self.ue_panel, textvariable=var).grid(row=i, column=1, sticky="w", padx=(15, 0))
+
+        self.users_panel = ttk.Frame(metrics_frame)
+        self.users_empty_var = tk.StringVar(value="Нет активных пользователей")
+        self.users_empty_label = ttk.Label(self.users_panel, textvariable=self.users_empty_var)
+        self.users_empty_label.grid(row=0, column=0, sticky="w")
+        self.users_notebook = ttk.Notebook(self.users_panel)
+        self.users_notebook.grid(row=0, column=0, sticky="nsew")
+        self.users_panel.columnconfigure(0, weight=1)
+        self.users_panel.rowconfigure(0, weight=1)
 
         graph_frame = ttk.LabelFrame(right, text="История планировщика", padding=5)
         graph_frame.grid(row=1, column=0, sticky="nsew", pady=(8, 0))
@@ -701,17 +728,27 @@ class DashboardApp:
         idx = sel[0]
         if idx == 0:
             self._show_general()
-        else:
+        elif idx == 1:
             self._show_ues()
+        else:
+            self._show_users()
 
     def _show_general(self):
+        self.users_panel.grid_forget()
         self.ue_panel.grid_forget()
         self.general_panel.grid(row=0, column=0, sticky="w")
 
     def _show_ues(self):
+        self.users_panel.grid_forget()
         self.general_panel.grid_forget()
         self.ue_panel.grid(row=0, column=0, sticky="w")
         self._update_ue_panel_display()
+
+    def _show_users(self):
+        self.general_panel.grid_forget()
+        self.ue_panel.grid_forget()
+        self.users_panel.grid(row=0, column=0, sticky="nsew")
+        self._update_users_panel_display()
 
     def _update_ue_panel_display(self):
         agg = self.aggregated_metrics
@@ -749,6 +786,7 @@ class DashboardApp:
         latency_map = extract_latency_map(metrics)
         active_throughputs, total_throughput, total_prb, avg_mcs, ue_data_list = self._update_aggregated_metrics(
             mac.get("ue_list", []), latency_map, metrics.get("cell_list", []))
+        self.user_metrics_by_id = self._extract_user_metrics(metrics, latency_map)
         self._update_general_metrics(mac)
 
         prb_util_raw = to_number(mac.get("prb_util"))
@@ -801,8 +839,12 @@ class DashboardApp:
 
         self._update_prio_list_display()
         self._redraw_plots()
-        if self.tab_list.curselection() and self.tab_list.curselection()[0] == 1:
-            self._show_ues()
+        if self.tab_list.curselection():
+            selected = self.tab_list.curselection()[0]
+            if selected == 1:
+                self._show_ues()
+            elif selected == 2:
+                self._show_users()
 
     def _update_general_metrics(self, mac: dict):
         jfi = to_number(mac.get("jfi"))
@@ -952,6 +994,98 @@ class DashboardApp:
         avg_mcs = sum(mcs_values) / len(mcs_values) if mcs_values else None
         self.last_dl_prio_list = [ue.get("dl_prio") for ue in ue_data if ue.get("dl_prio") is not None]
         return active_throughputs, total_throughput, total_prb, avg_mcs, ue_data
+
+    def _extract_user_metrics(self, metrics: dict, latency_map: dict) -> dict[int, dict]:
+        cell_ue_map = {}
+        for cell in metrics.get("cell_list", []):
+            for ue_entry in cell.get("cell_container", {}).get("ue_list", []):
+                ue_c = ue_entry.get("ue_container", {})
+                user_id = self._parse_int_metric(ue_c.get("user_id"), 0)
+                if user_id:
+                    cell_ue_map[user_id] = ue_c
+
+        users = {}
+        for entry in metrics.get("mac", {}).get("ue_list", []):
+            mac_ue = entry.get("mac_ue_container") or entry.get("ue_container", {})
+            if not mac_ue:
+                continue
+
+            rnti = self._parse_int_metric(mac_ue.get("rnti"), 0)
+            if not rnti:
+                continue
+
+            user_id = self._parse_int_metric(mac_ue.get("user_id"), 0)
+            if not user_id:
+                continue
+
+            cell_ue = cell_ue_map.get(user_id, {})
+            users[user_id] = {
+                "user_id": user_id,
+                "rnti": f"0x{rnti:x}" if rnti else "N/A",
+                "dl_throughput": self._format_metric(to_number(mac_ue.get("dl_throughput")), 1, " bps"),
+                "dl_bler": self._format_metric(to_number(mac_ue.get("dl_bler")), 3, " %"),
+                "dl_mcs": self._format_metric(to_number(mac_ue.get("dl_mcs")), 1),
+                "dl_cqi": self._format_metric(to_number(mac_ue.get("dl_cqi")), 1),
+                "dl_prb": self._format_metric(to_number(mac_ue.get("dl_prb")), 1),
+                "dl_buffer": str(self._parse_int_metric(mac_ue.get("dl_buffer"), 0)),
+                "bsr": str(self._parse_int_metric(mac_ue.get("bsr"), 0)),
+                "dl_latency": self._format_metric(latency_map.get(rnti), 1, " ms"),
+            }
+
+            if cell_ue:
+                dl_bitrate = to_number(cell_ue.get("dl_bitrate"))
+                if dl_bitrate and to_number(mac_ue.get("dl_throughput")) == 0:
+                    users[user_id]["dl_throughput"] = self._format_metric(dl_bitrate, 1, " bps")
+                dl_mcs = to_number(cell_ue.get("dl_mcs"))
+                if dl_mcs and to_number(mac_ue.get("dl_mcs")) == 0:
+                    users[user_id]["dl_mcs"] = self._format_metric(dl_mcs, 1)
+                dl_bler = to_number(cell_ue.get("dl_bler"))
+                if dl_bler is not None and to_number(mac_ue.get("dl_bler")) == 0:
+                    users[user_id]["dl_bler"] = self._format_metric(dl_bler, 3, " %")
+                dl_cqi = to_number(cell_ue.get("dl_cqi"))
+                if dl_cqi is not None and to_number(mac_ue.get("dl_cqi")) is None:
+                    users[user_id]["dl_cqi"] = self._format_metric(dl_cqi, 1)
+
+        return dict(sorted(users.items()))
+
+    def _ensure_user_tab(self, user_id: int):
+        if user_id in self.user_tabs:
+            return
+
+        frame = ttk.Frame(self.users_notebook, padding=10)
+        vars_for_tab = {}
+        for row, (label, key) in enumerate(USER_PANEL_FIELDS):
+            ttk.Label(frame, text=label).grid(row=row, column=0, sticky="w")
+            value_var = tk.StringVar(value="N/A")
+            ttk.Label(frame, textvariable=value_var).grid(row=row, column=1, sticky="w", padx=(15, 0))
+            vars_for_tab[key] = value_var
+
+        self.user_tabs[user_id] = frame
+        self.user_tab_vars[user_id] = vars_for_tab
+        self.users_notebook.add(frame, text=f"Ue{user_id}")
+
+    def _update_users_panel_display(self):
+        user_ids = list(self.user_metrics_by_id.keys())
+
+        for existing_id in list(self.user_tabs.keys()):
+            if existing_id not in self.user_metrics_by_id:
+                self.users_notebook.forget(self.user_tabs[existing_id])
+                del self.user_tabs[existing_id]
+                del self.user_tab_vars[existing_id]
+
+        if not user_ids:
+            self.users_notebook.grid_remove()
+            self.users_empty_label.grid()
+            return
+
+        self.users_empty_label.grid_remove()
+        self.users_notebook.grid()
+
+        for user_id in user_ids:
+            self._ensure_user_tab(user_id)
+            values = self.user_metrics_by_id[user_id]
+            for key, var in self.user_tab_vars[user_id].items():
+                var.set(str(values.get(key, "N/A")))
 
     def _metric_with_last_valid(self, rnti, metric_name, value, active):
         if value is None:
