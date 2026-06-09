@@ -1,0 +1,2 @@
+./EPC.sh &
+./ENB.sh
