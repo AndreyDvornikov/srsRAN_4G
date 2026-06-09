@@ -491,6 +491,29 @@ void sched::metrics_read(mac_metrics_t& metrics)
   metrics.scheduler_runtime_us = last_scheduler_runtime_us;
   metrics.nof_prb = sched_cell_params.empty() ? 0 : sched_cell_params[0].nof_prb();
   metrics.prb_util = last_prb_util_tti;
+  // GBR aggregates
+  float gbr_sum = 0.0f;
+  uint32_t gbr_count = 0;
+  for (auto& ue : metrics.ues) {
+    if (ue.is_gbr_bearer) {
+      gbr_sum += ue.gbr_achieved_ratio;
+      gbr_count++;
+      if (ue.gbr_achieved_ratio < 1.0f) {
+        metrics.ues_below_gbr++;
+      }
+    }
+  }
+  // PDB aggregates
+  for (auto& ue : metrics.ues) {
+    float violation_rate = 1.0f - ue.pdb_compliance_rate;
+    metrics.max_pdb_violation_rate = std::max(metrics.max_pdb_violation_rate, violation_rate);
+    if (ue.pdb_compliance_rate < 0.98f) {
+      metrics.ues_pdb_violation++;
+    }
+  }
+  if (gbr_count > 0) {
+    metrics.avg_gbr_achievement = gbr_sum / gbr_count;
+  }
   // Собираем тайминги напрямую из планировщиков сот
   uint64_t max_ranker = 0, max_alloc = 0, max_total = 0;
   for (auto& cc_ptr : carrier_schedulers) {

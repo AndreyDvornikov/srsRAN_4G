@@ -71,6 +71,8 @@ bool pdcp_entity_lte::configure(const pdcp_config_t& cnfg_)
 
   cfg     = cnfg_;
   rb_name = cfg.get_rb_name();
+  // === QoS: сохранить QCI в метриках ===
+  metrics.qci = static_cast<uint32_t>(cfg.qci);
 
   maximum_pdcp_sn              = (1u << cfg.sn_len) - 1u;
   st.last_submitted_pdcp_rx_sn = maximum_pdcp_sn;
@@ -734,7 +736,12 @@ bool pdcp_entity_lte::store_sdu(uint32_t sn, const unique_byte_buffer_t& sdu)
 void pdcp_entity_lte::discard_callback::operator()(uint32_t timer_id)
 {
   parent->logger.info("Discard timer for SN=%d expired", discard_sn);
-
+  // PDCP discard metrics
+  parent->metrics.num_tx_discarded_pdus++;
+  parent->metrics.num_tx_discarded_bytes += /* size from tx_window if available */ 0;
+  parent->logger.info("PDCP DISCARD: bearer=%s, SN=%u, total=%u",
+                      parent->rb_name.c_str(), discard_sn,
+                      parent->metrics.num_tx_discarded_pdus);
   // Notify the RLC of the discard. It's the RLC to actually discard, if no segment was transmitted yet.
   parent->rlc->discard_sdu(parent->lcid, discard_sn);
 

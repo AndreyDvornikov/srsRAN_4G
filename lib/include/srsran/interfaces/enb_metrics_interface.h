@@ -66,6 +66,16 @@ struct mac_ue_metrics_t {
     float ul_rssi = 0.0f;
     float dl_prio = 0.0f;
     float ul_prio = 0.0f;
+    uint32_t qci = 0;
+    bool     is_gbr_bearer = false;
+    float    gbr_required_bps = 0.0f;
+    float    gbr_achieved_ratio = 0.0f;
+    uint32_t pdb_limit_ms = 0;
+    uint32_t pdb_total_packets = 0;
+    uint32_t pdb_violated_packets = 0;
+    float    pdb_compliance_rate = 0.0f;
+    uint32_t pdcp_discarded_pdus = 0;
+    uint64_t pdcp_discarded_bytes = 0;
     
 };
 
@@ -85,6 +95,11 @@ struct mac_metrics_t {
     uint64_t last_ranker_time_us;
     uint64_t last_allocation_time_us;
     uint64_t last_total_sched_time_us;
+    float    avg_gbr_achievement = 0.0f;
+    uint32_t ues_below_gbr = 0;
+    float    max_pdb_violation_rate = 0.0f;
+    uint32_t ues_pdb_violation = 0;
+    uint64_t total_pdcp_discards = 0;
 };
 
 struct rlc_metrics_t {

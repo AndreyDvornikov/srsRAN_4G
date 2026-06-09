@@ -35,6 +35,9 @@ struct mac_lc_ch_cfg_t {
   uint32_t bsd                                          = 1000; // msec
   uint32_t pbr                                          = -1;   // prioritised bit rate
   int      group                                        = 0;    // logical channel group
+  uint32_t prioritised_bit_rate = 0;
+  uint32_t bucket_size_duration = 0;
+  uint32_t qci = 0;
 
   bool is_active() const { return direction != IDLE; }
   bool is_dl() const { return direction == DL or direction == BOTH; }

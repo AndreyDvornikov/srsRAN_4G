@@ -157,6 +157,7 @@ public:
   security_direction_t rx_direction  = SECURITY_DIRECTION_UPLINK;
   uint8_t              sn_len        = PDCP_SN_LEN_12;
   uint8_t              hdr_len_bytes = 2;
+  uint32_t qci = 0;   // или uint8_t qci = 0;
 
   pdcp_t_reordering_t  t_reordering  = pdcp_t_reordering_t::ms500;
   pdcp_discard_timer_t discard_timer = pdcp_discard_timer_t::infinity;

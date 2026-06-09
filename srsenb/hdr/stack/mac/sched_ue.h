@@ -177,6 +177,11 @@ public:
   void set_last_ul_prio(float v) { sched_metrics.ul_prio = v; }
 
 private:
+  // QoS helpers
+  uint32_t get_default_qci() const;
+  static bool     is_gbr_qci(uint32_t qci);
+  static uint32_t get_pdb_ms(uint32_t qci);
+  static float    get_gbr_kbps(uint32_t qci);
   void finalize_dl_metric_tti();
   void update_dl_hol_state(uint32_t curr_buffer);
   void reset_metrics();

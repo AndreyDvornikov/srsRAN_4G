@@ -203,6 +203,27 @@ void sched_ue::metrics_read(mac_ue_metrics_t& metrics)
   metrics.harq_retx_pending = (harq != nullptr);
   metrics.dl_throughput = get_dl_window_throughput_bps();
   metrics.dl_latency    = dl_latency_ms;
+  // === GBR metrics ===
+  metrics.qci = get_default_qci();
+  metrics.is_gbr_bearer = is_gbr_qci(metrics.qci);
+  if (metrics.is_gbr_bearer) {
+    metrics.gbr_required_bps = get_gbr_kbps(metrics.qci) * 1000.0f;
+    if (metrics.gbr_required_bps > 0.0f) {
+      metrics.gbr_achieved_ratio = metrics.dl_throughput / metrics.gbr_required_bps;
+      if (metrics.gbr_achieved_ratio > 1.0f) metrics.gbr_achieved_ratio = 1.0f;
+    }
+  }
+    // === PDB metrics ===
+  metrics.pdb_limit_ms = get_pdb_ms(metrics.qci);
+  if (dl_latency_ms > static_cast<float>(metrics.pdb_limit_ms)) {
+    metrics.pdb_violated_packets++;
+  }
+  metrics.pdb_total_packets++;
+  if (metrics.pdb_total_packets > 0) {
+    float violation_rate = static_cast<float>(metrics.pdb_violated_packets) /
+                           static_cast<float>(metrics.pdb_total_packets);
+    metrics.pdb_compliance_rate = 1.0f - violation_rate;
+  }
   metrics.dl_bler =
       dl_bler_window.empty() ? 0.0f : static_cast<float>(dl_bler_sum) / static_cast<float>(dl_bler_window.size());
   metrics.dl_alloc_count = dl_alloc_count_total;
@@ -1285,5 +1306,36 @@ int sched_ue::enb_to_ue_cc_idx(uint32_t enb_cc_idx) const
 {
   return enb_cc_idx < cells.size() ? cells[enb_cc_idx].get_ue_cc_idx() : -1;
 }
+uint32_t sched_ue::get_default_qci() const
+{
+  for (uint32_t lcid = 3; lcid < SRSRAN_N_RADIO_BEARERS; ++lcid) {
+    if (cfg.ue_bearers[lcid].qci != 0) {
+      return cfg.ue_bearers[lcid].qci;
+    }
+  }
+  return 9;
+}
 
+bool sched_ue::is_gbr_qci(uint32_t qci) { return (qci >= 1 && qci <= 4); }
+
+float sched_ue::get_gbr_kbps(uint32_t qci)
+{
+  switch (qci) {
+    case 1: return 64.0f;   // Voice
+    case 2: return 128.0f;  // Live Video
+    case 3: return 64.0f;   // Gaming
+    case 4: return 512.0f;  // Buffered Video
+    default: return 0.0f;
+  }
+}
+
+uint32_t sched_ue::get_pdb_ms(uint32_t qci)
+{
+  switch (qci) {
+    case 1: return 100; case 2: return 150; case 3: return 50;
+    case 4: return 300; case 5: return 100; case 6: return 300;
+    case 7: return 100; case 8: return 300; case 9: return 300;
+    default: return 1000;
+  }
+}
 } // namespace srsenb

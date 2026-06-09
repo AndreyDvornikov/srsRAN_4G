@@ -1,24 +1,3 @@
-/**
- * Copyright 2013-2023 Software Radio Systems Limited
- *
- * This file is part of srsRAN.
- *
- * srsRAN is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Affero General Public License as
- * published by the Free Software Foundation, either version 3 of
- * the License, or (at your option) any later version.
- *
- * srsRAN is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU Affero General Public License for more details.
- *
- * A copy of the GNU Affero General Public License can be found in
- * the LICENSE file in the top-level directory of this distribution
- * and at http://www.gnu.org/licenses/.
- *
- */
-
 #include "srsenb/hdr/metrics_json.h"
 #include "srsran/srslog/context.h"
 #include <unordered_map>
@@ -26,7 +5,6 @@
 using namespace srsenb;
 
 namespace {
-
 /// Bearer container metrics.
 DECLARE_METRIC("dl_buffer", metric_dl_buffer, uint32_t, "");
 DECLARE_METRIC("expected_bitrate", metric_expected_bitrate, uint32_t, "");
@@ -34,12 +12,20 @@ DECLARE_METRIC("dl_avg_rate", metric_dl_avg_rate, float, "");
 DECLARE_METRIC("harq_retx_pending", metric_harq_retx_pending, bool, "");
 DECLARE_METRIC("bearer_id", metric_bearer_id, uint32_t, "");
 DECLARE_METRIC("qci", metric_qci, uint32_t, "");
+DECLARE_METRIC("is_gbr_bearer", metric_is_gbr_bearer, bool, "");
+DECLARE_METRIC("gbr_required_bps", metric_gbr_required_bps, float, "");
+DECLARE_METRIC("gbr_achieved_ratio", metric_gbr_achieved_ratio, float, "");
 DECLARE_METRIC("dl_total_bytes", metric_dl_total_bytes, uint64_t, "");
 DECLARE_METRIC("ul_total_bytes", metric_ul_total_bytes, uint64_t, "");
 DECLARE_METRIC("dl_latency", metric_dl_latency, float, "");
 DECLARE_METRIC("ul_latency", metric_ul_latency, float, "");
 DECLARE_METRIC("dl_buffered_bytes", metric_dl_buffered_bytes, uint32_t, "");
 DECLARE_METRIC("ul_buffered_bytes", metric_ul_buffered_bytes, uint32_t, "");
+DECLARE_METRIC("pdb_limit_ms", metric_pdb_limit_ms_bearer, uint32_t, "");
+DECLARE_METRIC("pdb_compliance_rate", metric_pdb_compliance_rate_bearer, float, "");
+DECLARE_METRIC("pdcp_discarded_pdus", metric_pdcp_discarded_pdus_bearer, uint32_t, "");
+DECLARE_METRIC("pdcp_discarded_bytes", metric_pdcp_discarded_bytes_bearer, uint64_t, "");
+
 DECLARE_METRIC_SET("bearer_container",
                    mset_bearer_container,
                    metric_bearer_id,
@@ -49,7 +35,13 @@ DECLARE_METRIC_SET("bearer_container",
                    metric_dl_latency,
                    metric_ul_latency,
                    metric_dl_buffered_bytes,
-                   metric_ul_buffered_bytes);
+                   metric_ul_buffered_bytes,
+                   metric_gbr_required_bps,
+                   metric_gbr_achieved_ratio,
+                   metric_pdb_limit_ms_bearer,
+                   metric_pdb_compliance_rate_bearer,
+                   metric_pdcp_discarded_pdus_bearer,
+                   metric_pdcp_discarded_bytes_bearer);
 
 /// UE container metrics.
 DECLARE_METRIC("ue_rnti", metric_ue_rnti, uint32_t, "");
@@ -116,7 +108,6 @@ DECLARE_METRIC("dl_alloc_count", metric_mac_dl_alloc_count, uint32_t, "");
 DECLARE_METRIC("jfi", metric_mac_jfi, float, "");
 DECLARE_METRIC("avg_dl_prio", metric_avg_dl_prio, float, "");
 DECLARE_METRIC("max_dl_prio", metric_max_dl_prio, float, "");
-
 DECLARE_METRIC("avg_ul_prio", metric_avg_ul_prio, float, "");
 DECLARE_METRIC("max_ul_prio", metric_max_ul_prio, float, "");
 DECLARE_METRIC("num_ues", metric_mac_num_ues, uint32_t, "");
@@ -126,6 +117,26 @@ DECLARE_METRIC("nof_prb", metric_nof_prb, uint32_t, "");
 DECLARE_METRIC("ranker_time_us", metric_ranker_time_us, uint64_t, "");
 DECLARE_METRIC("allocation_time_us", metric_allocation_time_us, uint64_t, "");
 DECLARE_METRIC("total_sched_time_us", metric_total_sched_time_us, uint64_t, "");
+
+// === QoS per-UE metrics ===
+DECLARE_METRIC("qci", metric_mac_qci, uint32_t, "");
+DECLARE_METRIC("is_gbr_bearer", metric_mac_is_gbr_bearer, bool, "");
+DECLARE_METRIC("gbr_required_bps", metric_mac_gbr_required_bps, float, "");
+DECLARE_METRIC("gbr_achieved_ratio", metric_mac_gbr_achieved_ratio, float, "");
+DECLARE_METRIC("pdb_limit_ms", metric_mac_pdb_limit_ms, uint32_t, "");
+DECLARE_METRIC("pdb_total_packets", metric_mac_pdb_total_packets, uint32_t, "");
+DECLARE_METRIC("pdb_violated_packets", metric_mac_pdb_violated_packets, uint32_t, "");
+DECLARE_METRIC("pdb_compliance_rate", metric_mac_pdb_compliance_rate, float, "");
+DECLARE_METRIC("pdcp_discarded_pdus", metric_mac_pdcp_discarded_pdus, uint32_t, "");
+DECLARE_METRIC("pdcp_discarded_bytes", metric_mac_pdcp_discarded_bytes, uint64_t, "");
+
+// === QoS aggregate metrics ===
+DECLARE_METRIC("avg_gbr_achievement", metric_avg_gbr_achievement, float, "");
+DECLARE_METRIC("ues_below_gbr", metric_ues_below_gbr, uint32_t, "");
+DECLARE_METRIC("max_pdb_violation_rate", metric_max_pdb_violation_rate, float, "");
+DECLARE_METRIC("ues_pdb_violation", metric_ues_pdb_violation, uint32_t, "");
+DECLARE_METRIC("total_pdcp_discards", metric_total_pdcp_discards, uint64_t, "");
+
 DECLARE_METRIC_SET("mac_ue_container",
                    mset_mac_ue_container,
                    metric_mac_rnti,
@@ -151,9 +162,43 @@ DECLARE_METRIC_SET("mac_ue_container",
                    metric_mac_dl_alloc_count,
                    metric_expected_bitrate,
                    metric_dl_avg_rate,
-                   metric_harq_retx_pending);
+                   metric_harq_retx_pending,
+                   // === QoS metrics ===
+                   metric_mac_qci,
+                   metric_mac_is_gbr_bearer,
+                   metric_mac_gbr_required_bps,
+                   metric_mac_gbr_achieved_ratio,
+                   metric_mac_pdb_limit_ms,
+                   metric_mac_pdb_total_packets,
+                   metric_mac_pdb_violated_packets,
+                   metric_mac_pdb_compliance_rate,
+                   metric_mac_pdcp_discarded_pdus,
+                   metric_mac_pdcp_discarded_bytes);
+
 DECLARE_METRIC_LIST("ue_list", mlist_mac_ues, std::vector<mset_mac_ue_container>);
-DECLARE_METRIC_SET("mac", mset_mac_container, metric_mac_jfi, metric_mac_num_ues, metric_scheduler_runtime_us, metric_avg_dl_prio, metric_max_dl_prio, metric_avg_ul_prio, metric_max_ul_prio, metric_prb_util, metric_nof_prb, mlist_mac_ues, metric_ranker_time_us, metric_allocation_time_us, metric_total_sched_time_us);
+
+DECLARE_METRIC_SET("mac",
+                   mset_mac_container,
+                   metric_mac_jfi,
+                   metric_mac_num_ues,
+                   metric_scheduler_runtime_us,
+                   metric_avg_dl_prio,
+                   metric_max_dl_prio,
+                   metric_avg_ul_prio,
+                   metric_max_ul_prio,
+                   metric_prb_util,
+                   metric_nof_prb,
+                   mlist_mac_ues,
+                   metric_ranker_time_us,
+                   metric_allocation_time_us,
+                   metric_total_sched_time_us,
+                   // === QoS aggregates ===
+                   metric_avg_gbr_achievement,
+                   metric_ues_below_gbr,
+                   metric_max_pdb_violation_rate,
+                   metric_ues_pdb_violation,
+                   metric_total_pdcp_discards);
+
 /// Cell container metrics.
 DECLARE_METRIC("carrier_id", metric_carrier_id, uint32_t, "");
 DECLARE_METRIC("pci", metric_pci, uint32_t, "");
@@ -172,7 +217,6 @@ static double get_time_stamp()
   auto tp = std::chrono::system_clock::now().time_since_epoch();
   return std::chrono::duration_cast<std::chrono::milliseconds>(tp).count() * 1e-3;
 }
-
 
 /// Metrics context.
 using metric_context_t = srslog::build_context_type<metric_type_tag, metric_timestamp_tag, mlist_cell, mset_mac_container>;
@@ -357,8 +401,19 @@ static void fill_mac_metrics(mset_mac_ue_container& ue, const enb_metrics_t& m, 
   ue.write<metric_expected_bitrate>(mac_ue.expected_bitrate);
   ue.write<metric_dl_avg_rate>(mac_ue.dl_avg_rate);
   ue.write<metric_harq_retx_pending>(mac_ue.harq_retx_pending);
-}
 
+  // === QoS per-UE metrics (исправлены имена!) ===
+  ue.write<metric_mac_qci>(mac_ue.qci);
+  ue.write<metric_mac_is_gbr_bearer>(mac_ue.is_gbr_bearer);
+  ue.write<metric_mac_gbr_required_bps>(mac_ue.gbr_required_bps);
+  ue.write<metric_mac_gbr_achieved_ratio>(mac_ue.gbr_achieved_ratio);
+  ue.write<metric_mac_pdb_limit_ms>(mac_ue.pdb_limit_ms);
+  ue.write<metric_mac_pdb_total_packets>(mac_ue.pdb_total_packets);
+  ue.write<metric_mac_pdb_violated_packets>(mac_ue.pdb_violated_packets);
+  ue.write<metric_mac_pdb_compliance_rate>(mac_ue.pdb_compliance_rate);
+  ue.write<metric_mac_pdcp_discarded_pdus>(mac_ue.pdcp_discarded_pdus);
+  ue.write<metric_mac_pdcp_discarded_bytes>(mac_ue.pdcp_discarded_bytes);
+}
 
 /// Returns false if the input index is out of bounds in the metrics struct.
 static bool has_valid_metric_ranges(const enb_metrics_t& m, unsigned index)
@@ -434,6 +489,13 @@ void metrics_json::set_metrics(const enb_metrics_t& m, const uint32_t period_use
   mac_container.write<metric_ranker_time_us>(m.stack.mac.last_ranker_time_us);
   mac_container.write<metric_allocation_time_us>(m.stack.mac.last_allocation_time_us);
   mac_container.write<metric_total_sched_time_us>(m.stack.mac.last_total_sched_time_us);
+
+  // === QoS aggregate metrics (global) ===
+  mac_container.write<metric_avg_gbr_achievement>(m.stack.mac.avg_gbr_achievement);
+  mac_container.write<metric_ues_below_gbr>(m.stack.mac.ues_below_gbr);
+  mac_container.write<metric_max_pdb_violation_rate>(m.stack.mac.max_pdb_violation_rate);
+  mac_container.write<metric_ues_pdb_violation>(m.stack.mac.ues_pdb_violation);
+  mac_container.write<metric_total_pdcp_discards>(m.stack.mac.total_pdcp_discards);
 
   auto& mac_ue_list = mac_container.get<mlist_mac_ues>();
   mac_ue_list.resize(m.stack.mac.ues.size());

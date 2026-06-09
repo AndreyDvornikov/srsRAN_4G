@@ -43,6 +43,7 @@
 
 std::atomic<bool> simulate_rlf{false};
 
+using srsenb::mac_lc_ch_cfg_t;
 using namespace srsran;
 using namespace asn1::rrc;
 using srsran::lte_srb;
@@ -2838,6 +2839,7 @@ void rrc::add_drb(const drb_to_add_mod_s& drb_cnfg)
   pdcp->add_bearer(lcid, pdcp_cfg);
   pdcp->config_security(lcid, sec_cfg);
   pdcp->enable_encryption(lcid);
+  
 
   // Setup MAC
   uint8_t log_chan_group       = 0;
