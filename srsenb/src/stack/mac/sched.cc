@@ -471,8 +471,7 @@ int sched::metrics_read(uint16_t rnti, mac_ue_metrics_t& metrics)
 {
   return ue_db_access_locked(rnti, [&metrics](sched_ue& ue) {
 
-      metrics.dl_prio = ue.get_last_dl_prio();
-      metrics.ul_prio = ue.get_last_ul_prio();
+      ue.copy_scheduler_trace_metrics(metrics);
 
       return SRSRAN_SUCCESS;
   });

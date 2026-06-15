@@ -176,6 +176,101 @@ public:
   void set_dl_throughput(float tput) { sched_metrics.dl_throughput = tput; }
   void set_last_ul_prio(float v) { sched_metrics.ul_prio = v; }
 
+  void reset_onnx_trace_metrics()
+  {
+    sched_metrics.onnx_candidate        = false;
+    sched_metrics.onnx_active_ue_count  = 0;
+    sched_metrics.onnx_slot             = 0;
+    sched_metrics.onnx_rank             = 0;
+    sched_metrics.onnx_score            = 0.0f;
+    sched_metrics.onnx_is_retx          = false;
+    sched_metrics.onnx_allocated        = false;
+    sched_metrics.onnx_alloc_bytes      = 0;
+    sched_metrics.onnx_alloc_prbs       = 0;
+    sched_metrics.onnx_alloc_mcs        = 0;
+    sched_metrics.onnx_alloc_is_retx    = false;
+    sched_metrics.onnx_raw_cqi          = 0.0f;
+    sched_metrics.onnx_raw_cqi_age_tti  = 0.0f;
+    sched_metrics.onnx_raw_buffer_bytes = 0.0f;
+    sched_metrics.onnx_raw_avg_tput_bps = 0.0f;
+    sched_metrics.onnx_raw_dl_gap_tti   = 0.0f;
+    sched_metrics.onnx_norm_cqi         = 0.0f;
+    sched_metrics.onnx_norm_cqi_age     = 0.0f;
+    sched_metrics.onnx_norm_buffer      = 0.0f;
+    sched_metrics.onnx_norm_avg_tput    = 0.0f;
+    sched_metrics.onnx_norm_dl_gap      = 0.0f;
+  }
+
+  void set_onnx_candidate_trace(uint32_t slot,
+                                uint32_t active_ue_count,
+                                float    score,
+                                bool     is_retx,
+                                float    raw_cqi,
+                                float    raw_cqi_age_tti,
+                                float    raw_buffer_bytes,
+                                float    raw_avg_tput_bps,
+                                float    raw_dl_gap_tti,
+                                float    norm_cqi,
+                                float    norm_cqi_age,
+                                float    norm_buffer,
+                                float    norm_avg_tput,
+                                float    norm_dl_gap)
+  {
+    sched_metrics.onnx_candidate        = true;
+    sched_metrics.onnx_active_ue_count  = active_ue_count;
+    sched_metrics.onnx_slot             = slot;
+    sched_metrics.onnx_score            = score;
+    sched_metrics.onnx_is_retx          = is_retx;
+    sched_metrics.onnx_raw_cqi          = raw_cqi;
+    sched_metrics.onnx_raw_cqi_age_tti  = raw_cqi_age_tti;
+    sched_metrics.onnx_raw_buffer_bytes = raw_buffer_bytes;
+    sched_metrics.onnx_raw_avg_tput_bps = raw_avg_tput_bps;
+    sched_metrics.onnx_raw_dl_gap_tti   = raw_dl_gap_tti;
+    sched_metrics.onnx_norm_cqi         = norm_cqi;
+    sched_metrics.onnx_norm_cqi_age     = norm_cqi_age;
+    sched_metrics.onnx_norm_buffer      = norm_buffer;
+    sched_metrics.onnx_norm_avg_tput    = norm_avg_tput;
+    sched_metrics.onnx_norm_dl_gap      = norm_dl_gap;
+  }
+
+  void set_onnx_rank(uint32_t rank) { sched_metrics.onnx_rank = rank; }
+
+  void set_onnx_alloc_trace(uint32_t bytes, uint32_t prbs, uint32_t mcs, bool is_retx)
+  {
+    sched_metrics.onnx_allocated     = bytes > 0;
+    sched_metrics.onnx_alloc_bytes   = bytes;
+    sched_metrics.onnx_alloc_prbs    = prbs;
+    sched_metrics.onnx_alloc_mcs     = mcs;
+    sched_metrics.onnx_alloc_is_retx = is_retx;
+  }
+
+  void copy_scheduler_trace_metrics(mac_ue_metrics_t& metrics) const
+  {
+    metrics.dl_prio                   = sched_metrics.dl_prio;
+    metrics.ul_prio                   = sched_metrics.ul_prio;
+    metrics.onnx_candidate            = sched_metrics.onnx_candidate;
+    metrics.onnx_active_ue_count      = sched_metrics.onnx_active_ue_count;
+    metrics.onnx_slot                 = sched_metrics.onnx_slot;
+    metrics.onnx_rank                 = sched_metrics.onnx_rank;
+    metrics.onnx_score                = sched_metrics.onnx_score;
+    metrics.onnx_is_retx              = sched_metrics.onnx_is_retx;
+    metrics.onnx_allocated            = sched_metrics.onnx_allocated;
+    metrics.onnx_alloc_bytes          = sched_metrics.onnx_alloc_bytes;
+    metrics.onnx_alloc_prbs           = sched_metrics.onnx_alloc_prbs;
+    metrics.onnx_alloc_mcs            = sched_metrics.onnx_alloc_mcs;
+    metrics.onnx_alloc_is_retx        = sched_metrics.onnx_alloc_is_retx;
+    metrics.onnx_raw_cqi              = sched_metrics.onnx_raw_cqi;
+    metrics.onnx_raw_cqi_age_tti      = sched_metrics.onnx_raw_cqi_age_tti;
+    metrics.onnx_raw_buffer_bytes     = sched_metrics.onnx_raw_buffer_bytes;
+    metrics.onnx_raw_avg_tput_bps     = sched_metrics.onnx_raw_avg_tput_bps;
+    metrics.onnx_raw_dl_gap_tti       = sched_metrics.onnx_raw_dl_gap_tti;
+    metrics.onnx_norm_cqi             = sched_metrics.onnx_norm_cqi;
+    metrics.onnx_norm_cqi_age         = sched_metrics.onnx_norm_cqi_age;
+    metrics.onnx_norm_buffer          = sched_metrics.onnx_norm_buffer;
+    metrics.onnx_norm_avg_tput        = sched_metrics.onnx_norm_avg_tput;
+    metrics.onnx_norm_dl_gap          = sched_metrics.onnx_norm_dl_gap;
+  }
+
 private:
   // QoS helpers
   uint32_t get_default_qci() const;

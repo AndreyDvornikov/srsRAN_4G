@@ -30,6 +30,8 @@ DEFAULT_METRICS_FILE = "/tmp/enb_report.json"
 MAX_POINTS = 100
 UPDATE_MS = 100
 PRB_BANDWIDTH_HZ = 10 * 10**6
+MAX_REASONABLE_SE = 10.0
+MAX_REASONABLE_DL_THROUGHPUT_BPS = PRB_BANDWIDTH_HZ * MAX_REASONABLE_SE
 MOVING_AVG_WINDOW = 5
 CDF_MAX_SAMPLES = 10000
 
@@ -69,6 +71,14 @@ def to_number(value):
     if not math.isfinite(parsed):
         return None
     return parsed
+
+
+def valid_cqi(value):
+    """Возвращает валидный DL CQI или None, если CQI отсутствует/нулевой."""
+    cqi = to_number(value)
+    if cqi is None or cqi <= 0 or cqi > 15:
+        return None
+    return cqi
 
 
 def is_active_ue(prb, bsr, dl_buffer, dl_throughput):
@@ -832,10 +842,9 @@ class DashboardApp:
         for ue in ue_data_list:
             rnti = ue["rnti"]
             cqi = ue.get("dl_cqi")
-            if cqi is not None:
-                if rnti not in self.ue_cqi_histories:
-                    self.ue_cqi_histories[rnti] = deque(maxlen=MAX_POINTS)
-                self.ue_cqi_histories[rnti].append(cqi)
+            if rnti not in self.ue_cqi_histories:
+                self.ue_cqi_histories[rnti] = deque(maxlen=MAX_POINTS)
+            self.ue_cqi_histories[rnti].append(valid_cqi(cqi))
 
         self._update_prio_list_display()
         self._redraw_plots()
@@ -891,7 +900,7 @@ class DashboardApp:
                 "bsr": to_number(c.get("bsr")),
                 "dl_retx_count": self._parse_int_metric(c.get("dl_retx_count"), 0),
                 "dl_aggr_level": self._parse_int_metric(c.get("dl_aggr_level"), 0),
-                "dl_cqi": to_number(c.get("dl_cqi")),
+                "dl_cqi": valid_cqi(c.get("dl_cqi")),
                 "dl_prio": to_number(c.get("dl_prio")),
             }
 
@@ -910,7 +919,10 @@ class DashboardApp:
                     if dl_bler is not None:
                         raw["dl_bler"] = dl_bler
                 if raw["dl_cqi"] is None:
-                    raw["dl_cqi"] = to_number(cell_ue.get("dl_cqi"))
+                    raw["dl_cqi"] = valid_cqi(cell_ue.get("dl_cqi"))
+
+            if raw["dl_throughput"] is not None and raw["dl_throughput"] > MAX_REASONABLE_DL_THROUGHPUT_BPS:
+                raw["dl_throughput"] = 0.0
 
             if (
                 raw["dl_prb"] == 0
@@ -1019,13 +1031,14 @@ class DashboardApp:
                 continue
 
             cell_ue = cell_ue_map.get(user_id, {})
+            mac_cqi = valid_cqi(mac_ue.get("dl_cqi"))
             users[user_id] = {
                 "user_id": user_id,
                 "rnti": f"0x{rnti:x}" if rnti else "N/A",
                 "dl_throughput": self._format_metric(to_number(mac_ue.get("dl_throughput")), 1, " bps"),
                 "dl_bler": self._format_metric(to_number(mac_ue.get("dl_bler")), 3, " %"),
                 "dl_mcs": self._format_metric(to_number(mac_ue.get("dl_mcs")), 1),
-                "dl_cqi": self._format_metric(to_number(mac_ue.get("dl_cqi")), 1),
+                "dl_cqi": self._format_metric(mac_cqi, 1),
                 "dl_prb": self._format_metric(to_number(mac_ue.get("dl_prb")), 1),
                 "dl_buffer": str(self._parse_int_metric(mac_ue.get("dl_buffer"), 0)),
                 "bsr": str(self._parse_int_metric(mac_ue.get("bsr"), 0)),
@@ -1042,8 +1055,8 @@ class DashboardApp:
                 dl_bler = to_number(cell_ue.get("dl_bler"))
                 if dl_bler is not None and to_number(mac_ue.get("dl_bler")) == 0:
                     users[user_id]["dl_bler"] = self._format_metric(dl_bler, 3, " %")
-                dl_cqi = to_number(cell_ue.get("dl_cqi"))
-                if dl_cqi is not None and to_number(mac_ue.get("dl_cqi")) is None:
+                dl_cqi = valid_cqi(cell_ue.get("dl_cqi"))
+                if dl_cqi is not None and mac_cqi is None:
                     users[user_id]["dl_cqi"] = self._format_metric(dl_cqi, 1)
 
         return dict(sorted(users.items()))
@@ -1105,6 +1118,8 @@ class DashboardApp:
     @staticmethod
     def _compute_se(total_throughput, _total_prb=None):
         if total_throughput is None:
+            return None
+        if total_throughput > MAX_REASONABLE_DL_THROUGHPUT_BPS:
             return None
         return total_throughput / PRB_BANDWIDTH_HZ
 

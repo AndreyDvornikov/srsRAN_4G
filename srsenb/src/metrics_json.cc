@@ -130,6 +130,28 @@ DECLARE_METRIC("pdb_compliance_rate", metric_mac_pdb_compliance_rate, float, "")
 DECLARE_METRIC("pdcp_discarded_pdus", metric_mac_pdcp_discarded_pdus, uint32_t, "");
 DECLARE_METRIC("pdcp_discarded_bytes", metric_mac_pdcp_discarded_bytes, uint64_t, "");
 
+DECLARE_METRIC("onnx_candidate", metric_onnx_candidate, bool, "");
+DECLARE_METRIC("onnx_active_ue_count", metric_onnx_active_ue_count, uint32_t, "");
+DECLARE_METRIC("onnx_slot", metric_onnx_slot, uint32_t, "");
+DECLARE_METRIC("onnx_rank", metric_onnx_rank, uint32_t, "");
+DECLARE_METRIC("onnx_score", metric_onnx_score, float, "");
+DECLARE_METRIC("onnx_is_retx", metric_onnx_is_retx, bool, "");
+DECLARE_METRIC("onnx_allocated", metric_onnx_allocated, bool, "");
+DECLARE_METRIC("onnx_alloc_bytes", metric_onnx_alloc_bytes, uint32_t, "");
+DECLARE_METRIC("onnx_alloc_prbs", metric_onnx_alloc_prbs, uint32_t, "");
+DECLARE_METRIC("onnx_alloc_mcs", metric_onnx_alloc_mcs, uint32_t, "");
+DECLARE_METRIC("onnx_alloc_is_retx", metric_onnx_alloc_is_retx, bool, "");
+DECLARE_METRIC("onnx_raw_cqi", metric_onnx_raw_cqi, float, "");
+DECLARE_METRIC("onnx_raw_cqi_age_tti", metric_onnx_raw_cqi_age_tti, float, "");
+DECLARE_METRIC("onnx_raw_buffer_bytes", metric_onnx_raw_buffer_bytes, float, "");
+DECLARE_METRIC("onnx_raw_avg_tput_bps", metric_onnx_raw_avg_tput_bps, float, "");
+DECLARE_METRIC("onnx_raw_dl_gap_tti", metric_onnx_raw_dl_gap_tti, float, "");
+DECLARE_METRIC("onnx_norm_cqi", metric_onnx_norm_cqi, float, "");
+DECLARE_METRIC("onnx_norm_cqi_age", metric_onnx_norm_cqi_age, float, "");
+DECLARE_METRIC("onnx_norm_buffer", metric_onnx_norm_buffer, float, "");
+DECLARE_METRIC("onnx_norm_avg_tput", metric_onnx_norm_avg_tput, float, "");
+DECLARE_METRIC("onnx_norm_dl_gap", metric_onnx_norm_dl_gap, float, "");
+
 // === QoS aggregate metrics ===
 DECLARE_METRIC("avg_gbr_achievement", metric_avg_gbr_achievement, float, "");
 DECLARE_METRIC("ues_below_gbr", metric_ues_below_gbr, uint32_t, "");
@@ -163,6 +185,27 @@ DECLARE_METRIC_SET("mac_ue_container",
                    metric_expected_bitrate,
                    metric_dl_avg_rate,
                    metric_harq_retx_pending,
+                   metric_onnx_candidate,
+                   metric_onnx_active_ue_count,
+                   metric_onnx_slot,
+                   metric_onnx_rank,
+                   metric_onnx_score,
+                   metric_onnx_is_retx,
+                   metric_onnx_allocated,
+                   metric_onnx_alloc_bytes,
+                   metric_onnx_alloc_prbs,
+                   metric_onnx_alloc_mcs,
+                   metric_onnx_alloc_is_retx,
+                   metric_onnx_raw_cqi,
+                   metric_onnx_raw_cqi_age_tti,
+                   metric_onnx_raw_buffer_bytes,
+                   metric_onnx_raw_avg_tput_bps,
+                   metric_onnx_raw_dl_gap_tti,
+                   metric_onnx_norm_cqi,
+                   metric_onnx_norm_cqi_age,
+                   metric_onnx_norm_buffer,
+                   metric_onnx_norm_avg_tput,
+                   metric_onnx_norm_dl_gap,
                    // === QoS metrics ===
                    metric_mac_qci,
                    metric_mac_is_gbr_bearer,
@@ -401,6 +444,27 @@ static void fill_mac_metrics(mset_mac_ue_container& ue, const enb_metrics_t& m, 
   ue.write<metric_expected_bitrate>(mac_ue.expected_bitrate);
   ue.write<metric_dl_avg_rate>(mac_ue.dl_avg_rate);
   ue.write<metric_harq_retx_pending>(mac_ue.harq_retx_pending);
+  ue.write<metric_onnx_candidate>(mac_ue.onnx_candidate);
+  ue.write<metric_onnx_active_ue_count>(mac_ue.onnx_active_ue_count);
+  ue.write<metric_onnx_slot>(mac_ue.onnx_slot);
+  ue.write<metric_onnx_rank>(mac_ue.onnx_rank);
+  ue.write<metric_onnx_score>(mac_ue.onnx_score);
+  ue.write<metric_onnx_is_retx>(mac_ue.onnx_is_retx);
+  ue.write<metric_onnx_allocated>(mac_ue.onnx_allocated);
+  ue.write<metric_onnx_alloc_bytes>(mac_ue.onnx_alloc_bytes);
+  ue.write<metric_onnx_alloc_prbs>(mac_ue.onnx_alloc_prbs);
+  ue.write<metric_onnx_alloc_mcs>(mac_ue.onnx_alloc_mcs);
+  ue.write<metric_onnx_alloc_is_retx>(mac_ue.onnx_alloc_is_retx);
+  ue.write<metric_onnx_raw_cqi>(mac_ue.onnx_raw_cqi);
+  ue.write<metric_onnx_raw_cqi_age_tti>(mac_ue.onnx_raw_cqi_age_tti);
+  ue.write<metric_onnx_raw_buffer_bytes>(mac_ue.onnx_raw_buffer_bytes);
+  ue.write<metric_onnx_raw_avg_tput_bps>(mac_ue.onnx_raw_avg_tput_bps);
+  ue.write<metric_onnx_raw_dl_gap_tti>(mac_ue.onnx_raw_dl_gap_tti);
+  ue.write<metric_onnx_norm_cqi>(mac_ue.onnx_norm_cqi);
+  ue.write<metric_onnx_norm_cqi_age>(mac_ue.onnx_norm_cqi_age);
+  ue.write<metric_onnx_norm_buffer>(mac_ue.onnx_norm_buffer);
+  ue.write<metric_onnx_norm_avg_tput>(mac_ue.onnx_norm_avg_tput);
+  ue.write<metric_onnx_norm_dl_gap>(mac_ue.onnx_norm_dl_gap);
 
   // === QoS per-UE metrics (исправлены имена!) ===
   ue.write<metric_mac_qci>(mac_ue.qci);

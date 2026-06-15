@@ -76,6 +76,28 @@ struct mac_ue_metrics_t {
     float    pdb_compliance_rate = 0.0f;
     uint32_t pdcp_discarded_pdus = 0;
     uint64_t pdcp_discarded_bytes = 0;
+
+    bool     onnx_candidate = false;
+    uint32_t onnx_active_ue_count = 0;
+    uint32_t onnx_slot = 0;
+    uint32_t onnx_rank = 0;
+    float    onnx_score = 0.0f;
+    bool     onnx_is_retx = false;
+    bool     onnx_allocated = false;
+    uint32_t onnx_alloc_bytes = 0;
+    uint32_t onnx_alloc_prbs = 0;
+    uint32_t onnx_alloc_mcs = 0;
+    bool     onnx_alloc_is_retx = false;
+    float    onnx_raw_cqi = 0.0f;
+    float    onnx_raw_cqi_age_tti = 0.0f;
+    float    onnx_raw_buffer_bytes = 0.0f;
+    float    onnx_raw_avg_tput_bps = 0.0f;
+    float    onnx_raw_dl_gap_tti = 0.0f;
+    float    onnx_norm_cqi = 0.0f;
+    float    onnx_norm_cqi_age = 0.0f;
+    float    onnx_norm_buffer = 0.0f;
+    float    onnx_norm_avg_tput = 0.0f;
+    float    onnx_norm_dl_gap = 0.0f;
     
 };
 
