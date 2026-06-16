@@ -470,8 +470,7 @@ bool sched::is_generated(srsran::tti_point tti_rx, uint32_t enb_cc_idx) const
 int sched::metrics_read(uint16_t rnti, mac_ue_metrics_t& metrics)
 {
   return ue_db_access_locked(rnti, [&metrics](sched_ue& ue) {
-
-      ue.copy_scheduler_trace_metrics(metrics);
+      ue.metrics_read(metrics);
 
       return SRSRAN_SUCCESS;
   });

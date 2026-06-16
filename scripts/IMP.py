@@ -151,16 +151,41 @@ def extract_latency_map(metrics: dict) -> dict:
         ue_list = cell.get("ue_list") or cell.get("cell_container", {}).get("ue_list", [])
         for ue_entry in ue_list:
             ue = ue_entry.get("ue_container", {})
-            rnti = ue.get("ue_rnti")
+            rnti = to_number(ue.get("ue_rnti"))
+            bearer_latencies = []
             for bearer_entry in ue.get("bearer_list", []):
                 bearer = bearer_entry.get("bearer_container", {})
                 latency = bearer.get("dl_latency")
-                if rnti is not None and latency is not None:
-                    parsed = to_number(latency)
-                    if parsed is not None:
-                        latency_map[int(rnti)] = parsed
-                    break
+                parsed = to_number(latency)
+                if parsed is not None:
+                    bearer_latencies.append(parsed)
+            if rnti is not None and bearer_latencies:
+                latency_map[int(rnti)] = sum(bearer_latencies) / len(bearer_latencies)
+    for entry in metrics.get("mac", {}).get("ue_list", []):
+        ue = entry.get("mac_ue_container") or entry.get("ue_container", {})
+        rnti = to_number(ue.get("rnti"))
+        if rnti is None:
+            continue
+        latency = to_number(ue.get("dl_hol_latency"))
+        if latency is None:
+            latency = to_number(ue.get("dl_latency"))
+        if latency is not None and (int(rnti) not in latency_map or latency > 0):
+            latency_map[int(rnti)] = latency
     return latency_map
+
+
+def extract_hol_max_map(metrics: dict) -> dict:
+    """Строит словарь {rnti: max DL HOL latency} на основе MAC-метрик."""
+    max_map = {}
+    for entry in metrics.get("mac", {}).get("ue_list", []):
+        ue = entry.get("mac_ue_container") or entry.get("ue_container", {})
+        rnti = to_number(ue.get("rnti"))
+        if rnti is None:
+            continue
+        latency = to_number(ue.get("dl_hol_latency_max"))
+        if latency is not None:
+            max_map[int(rnti)] = latency
+    return max_map
 
 
 class FileMetricsSource:
@@ -210,10 +235,11 @@ class AggregatedUEMetrics:
     total_dl_prb: float = 0.0
     total_dl_buffer: float = 0.0
     total_dl_retx_count: int = 0
+    avg_dl_service_gap_tti: Optional[float] = None
+    max_dl_service_gap_tti: Optional[int] = None
     avg_dl_aggr_level: float = 0.0
     avg_se: Optional[float] = None
     avg_dl_latency: Optional[float] = None
-
 
 USER_PANEL_FIELDS = [
     ("User ID", "user_id"),
@@ -224,8 +250,17 @@ USER_PANEL_FIELDS = [
     ("DL CQI", "dl_cqi"),
     ("DL PRB", "dl_prb"),
     ("DL Buffer", "dl_buffer"),
-    ("BSR", "bsr"),
-    ("DL Latency", "dl_latency"),
+    ("DL RETX Count", "dl_retx_count"),
+    ("DL RETX Flag", "dl_retx_flag"),
+    ("DL Service Gap", "dl_service_gap_tti"),
+    ("DL Gap Max", "dl_service_gap_max_tti"),
+    ("DL HOL Latency", "dl_latency"),
+    ("DL HOL Max", "dl_hol_latency_max"),
+    ("QCI", "qci"),
+    ("PDB Limit", "pdb_limit_ms"),
+    ("PDB Compliance", "pdb_compliance_rate"),
+    ("PDCP Discard Pdus", "pdcp_discarded_pdus"),
+    ("PDCP Discard Bytes", "pdcp_discarded_bytes"),
 ]
 
 
@@ -233,13 +268,14 @@ def compute_python_metrics(metrics: dict) -> dict:
     """Вычисляет агрегированные python-метрики для одного среза."""
     mac = metrics.get("mac", {})
     cell_list = metrics.get("cell_list", [])
+    latency_map = extract_latency_map(metrics)
 
     # Извлекаем данные по UE
     cell_ue_map = {}
     for cell in cell_list:
         for ue_entry in cell.get("cell_container", {}).get("ue_list", []):
             ue_c = ue_entry.get("ue_container", {})
-            rnti = ue_c.get("ue_rnti")
+            rnti = to_number(ue_c.get("ue_rnti"))
             if rnti is not None:
                 cell_ue_map[int(rnti)] = ue_c
 
@@ -252,11 +288,13 @@ def compute_python_metrics(metrics: dict) -> dict:
         if rnti is None:
             continue
         raw = {
+            "rnti": int(rnti),
             "dl_throughput": to_number(c.get("dl_throughput")),
             "dl_bler": to_number(c.get("dl_bler")),
             "dl_mcs": to_number(c.get("dl_mcs")),
             "dl_prb": to_number(c.get("dl_prb")),
             "dl_buffer": to_number(c.get("dl_buffer")),
+            "dl_latency": latency_map.get(int(rnti), to_number(c.get("dl_latency"))),
         }
         cell_ue = cell_ue_map.get(int(rnti))
         if cell_ue:
@@ -293,6 +331,7 @@ def compute_python_metrics(metrics: dict) -> dict:
             "total_dl_prb": 0,
             "total_dl_buffer": 0,
             "avg_se_bps_per_hz": 0,
+            "avg_dl_latency_ms": 0,
             "jfi": 0
         }
 
@@ -301,6 +340,7 @@ def compute_python_metrics(metrics: dict) -> dict:
     mcses = [d["dl_mcs"] for d in ue_data]
     prbs = [d["dl_prb"] for d in ue_data]
     buffers = [d["dl_buffer"] for d in ue_data]
+    latencies = [d["dl_latency"] for d in ue_data if d["dl_latency"] is not None]
 
     avg_throughput = sum(throughputs) / count
     avg_bler = sum(blers) / count
@@ -321,6 +361,7 @@ def compute_python_metrics(metrics: dict) -> dict:
         "total_dl_prb": round(total_prb, 1),
         "total_dl_buffer": int(total_buffer),
         "avg_se_bps_per_hz": round(se, 3),
+        "avg_dl_latency_ms": round(sum(latencies) / len(latencies), 1) if latencies else 0,
         "jfi": round(jfi_val, 4)
     }
 
@@ -472,6 +513,14 @@ class DashboardApp:
             "UEs": tk.StringVar(value="0"),
             "Runtime": tk.StringVar(value="0 us"),
             "PRB Util": tk.StringVar(value="N/A"),
+            "Avg Cell HOL Latency": tk.StringVar(value="N/A"),
+            "Max Cell HOL Latency": tk.StringVar(value="N/A"),
+            "Avg DL Service Gap": tk.StringVar(value="N/A"),
+            "Max DL Service Gap": tk.StringVar(value="N/A"),
+            "HOL Source": tk.StringVar(value="N/A"),
+            "Max PDB Violation Rate": tk.StringVar(value="N/A"),
+            "UEs PDB Violation": tk.StringVar(value="N/A"),
+            "Total PDCP Discards": tk.StringVar(value="N/A"),
         }
         for i, (name, var) in enumerate(self.general_values.items()):
             ttk.Label(self.general_panel, text=name).grid(row=i, column=0, sticky="w")
@@ -794,10 +843,12 @@ class DashboardApp:
             self.ml_total_var.set("N/A")
 
         latency_map = extract_latency_map(metrics)
+        hol_max_map = extract_hol_max_map(metrics)
         active_throughputs, total_throughput, total_prb, avg_mcs, ue_data_list = self._update_aggregated_metrics(
             mac.get("ue_list", []), latency_map, metrics.get("cell_list", []))
-        self.user_metrics_by_id = self._extract_user_metrics(metrics, latency_map)
+        self.user_metrics_by_id = self._extract_user_metrics(metrics, latency_map, hol_max_map)
         self._update_general_metrics(mac)
+        self._update_hol_source(mac)
 
         prb_util_raw = to_number(mac.get("prb_util"))
         if prb_util_raw is not None:
@@ -867,6 +918,44 @@ class DashboardApp:
         self.general_values["Runtime"].set(f"{runtime_us} us")
         self.general_values["Avg DL Prio"].set(f"{avg_dl_prio:.3f}" if avg_dl_prio is not None else "N/A")
         self.general_values["Max DL Prio"].set(f"{max_dl_prio:.3f}" if max_dl_prio is not None else "N/A")
+        self.general_values["Avg Cell HOL Latency"].set(
+            self._format_metric(self.aggregated_metrics.avg_dl_latency, 1, " ms"))
+        hol_max_values = [
+            to_number((entry.get("mac_ue_container") or entry.get("ue_container", {})).get("dl_hol_latency_max"))
+            for entry in mac.get("ue_list", [])
+        ]
+        hol_max_values = [value for value in hol_max_values if value is not None]
+        self.general_values["Max Cell HOL Latency"].set(
+            self._format_metric(max(hol_max_values), 1, " ms") if hol_max_values else "N/A")
+        self.general_values["Avg DL Service Gap"].set(
+            self._format_metric(self.aggregated_metrics.avg_dl_service_gap_tti, 1, " tti"))
+        self.general_values["Max DL Service Gap"].set(
+            f"{self.aggregated_metrics.max_dl_service_gap_tti} tti"
+            if self.aggregated_metrics.max_dl_service_gap_tti is not None else "N/A")
+
+        # QoS-глобальные метрики
+        max_pdb_viol = to_number(mac.get("max_pdb_violation_rate"))
+        ues_pdb_viol = self._parse_int_metric(mac.get("ues_pdb_violation"), 0)
+        total_discard_bytes = self._parse_int_metric(mac.get("total_pdcp_discards"), 0)
+
+        self.general_values["Max PDB Violation Rate"].set(f"{max_pdb_viol:.3f}" if max_pdb_viol is not None else "N/A")
+        self.general_values["UEs PDB Violation"].set(str(ues_pdb_viol))
+        self.general_values["Total PDCP Discards"].set(str(total_discard_bytes))
+
+    def _update_hol_source(self, mac: dict):
+        has_hol = False
+        has_legacy = False
+        for entry in mac.get("ue_list", []):
+            ue = entry.get("mac_ue_container") or entry.get("ue_container", {})
+            has_hol = has_hol or ("dl_hol_latency" in ue)
+            has_legacy = has_legacy or ("dl_latency" in ue)
+        if has_hol:
+            value = "dl_hol_latency"
+        elif has_legacy:
+            value = "legacy dl_latency"
+        else:
+            value = "missing"
+        self.general_values["HOL Source"].set(value)
 
     def _update_aggregated_metrics(self, ue_list, latency_map, cell_list):
         active_throughputs = []
@@ -899,6 +988,9 @@ class DashboardApp:
                 "dl_buffer": to_number(c.get("dl_buffer")),
                 "bsr": to_number(c.get("bsr")),
                 "dl_retx_count": self._parse_int_metric(c.get("dl_retx_count"), 0),
+                "dl_retx_flag": self._parse_bool_metric(c.get("dl_retx_flag")),
+                "dl_service_gap_tti": self._parse_int_metric(c.get("dl_service_gap_tti"), 0),
+                "dl_service_gap_max_tti": self._parse_int_metric(c.get("dl_service_gap_max_tti"), 0),
                 "dl_aggr_level": self._parse_int_metric(c.get("dl_aggr_level"), 0),
                 "dl_cqi": valid_cqi(c.get("dl_cqi")),
                 "dl_prio": to_number(c.get("dl_prio")),
@@ -957,6 +1049,9 @@ class DashboardApp:
                 "dl_buffer": dl_buffer,
                 "bsr": raw["bsr"],
                 "dl_retx_count": raw["dl_retx_count"],
+                "dl_retx_flag": raw["dl_retx_flag"],
+                "dl_service_gap_tti": raw["dl_service_gap_tti"],
+                "dl_service_gap_max_tti": raw["dl_service_gap_max_tti"],
                 "dl_aggr_level": raw["dl_aggr_level"],
                 "dl_latency": dl_latency,
                 "dl_cqi": raw["dl_cqi"],
@@ -983,6 +1078,8 @@ class DashboardApp:
             self.aggregated_metrics.total_dl_prb = 0.0
             self.aggregated_metrics.total_dl_buffer = 0.0
             self.aggregated_metrics.total_dl_retx_count = 0
+            self.aggregated_metrics.avg_dl_service_gap_tti = None
+            self.aggregated_metrics.max_dl_service_gap_tti = None
             self.aggregated_metrics.avg_dl_aggr_level = 0.0
             self.aggregated_metrics.avg_se = None
             self.aggregated_metrics.avg_dl_latency = None
@@ -996,6 +1093,10 @@ class DashboardApp:
             self.aggregated_metrics.total_dl_prb = sum(d["dl_prb"] for d in ue_data if d["dl_prb"] is not None)
             self.aggregated_metrics.total_dl_buffer = sum(d["dl_buffer"] for d in ue_data if d["dl_buffer"] is not None)
             self.aggregated_metrics.total_dl_retx_count = sum(d["dl_retx_count"] for d in ue_data)
+            service_gaps = [d["dl_service_gap_tti"] for d in ue_data]
+            self.aggregated_metrics.avg_dl_service_gap_tti = (
+                sum(service_gaps) / len(service_gaps)) if service_gaps else None
+            self.aggregated_metrics.max_dl_service_gap_tti = max(service_gaps) if service_gaps else None
             valid_aggr = [d["dl_aggr_level"] for d in ue_data if d["dl_aggr_level"] is not None]
             self.aggregated_metrics.avg_dl_aggr_level = (sum(valid_aggr) / len(valid_aggr)) if valid_aggr else 0.0
             valid_se = [d["se"] for d in ue_data if d["se"] is not None]
@@ -1007,7 +1108,7 @@ class DashboardApp:
         self.last_dl_prio_list = [ue.get("dl_prio") for ue in ue_data if ue.get("dl_prio") is not None]
         return active_throughputs, total_throughput, total_prb, avg_mcs, ue_data
 
-    def _extract_user_metrics(self, metrics: dict, latency_map: dict) -> dict[int, dict]:
+    def _extract_user_metrics(self, metrics: dict, latency_map: dict, hol_max_map: dict) -> dict[int, dict]:
         cell_ue_map = {}
         for cell in metrics.get("cell_list", []):
             for ue_entry in cell.get("cell_container", {}).get("ue_list", []):
@@ -1041,8 +1142,18 @@ class DashboardApp:
                 "dl_cqi": self._format_metric(mac_cqi, 1),
                 "dl_prb": self._format_metric(to_number(mac_ue.get("dl_prb")), 1),
                 "dl_buffer": str(self._parse_int_metric(mac_ue.get("dl_buffer"), 0)),
-                "bsr": str(self._parse_int_metric(mac_ue.get("bsr"), 0)),
+                "dl_retx_count": str(self._parse_int_metric(mac_ue.get("dl_retx_count"), 0)),
+                "dl_retx_flag": str(self._parse_bool_metric(mac_ue.get("dl_retx_flag"))),
+                "dl_service_gap_tti": f"{self._parse_int_metric(mac_ue.get('dl_service_gap_tti'), 0)} tti",
+                "dl_service_gap_max_tti": f"{self._parse_int_metric(mac_ue.get('dl_service_gap_max_tti'), 0)} tti",
                 "dl_latency": self._format_metric(latency_map.get(rnti), 1, " ms"),
+                "dl_hol_latency_max": self._format_metric(hol_max_map.get(rnti), 1, " ms"),
+                # Новые QoS-поля
+                "qci": str(self._parse_int_metric(mac_ue.get("qci"), default=0)),
+                "pdb_limit_ms": self._format_metric(to_number(mac_ue.get("pdb_limit_ms")), 0, " ms"),
+                "pdb_compliance_rate": self._format_metric(to_number(mac_ue.get("pdb_compliance_rate")), 3),
+                "pdcp_discarded_pdus": str(self._parse_int_metric(mac_ue.get("pdcp_discarded_pdus"), 0)),
+                "pdcp_discarded_bytes": str(self._parse_int_metric(mac_ue.get("pdcp_discarded_bytes"), 0)),
             }
 
             if cell_ue:
@@ -1114,6 +1225,14 @@ class DashboardApp:
     def _parse_int_metric(value, default=0):
         parsed = to_number(value)
         return default if parsed is None else int(parsed)
+
+    @staticmethod
+    def _parse_bool_metric(value):
+        if isinstance(value, bool):
+            return value
+        if isinstance(value, str):
+            return value.strip().lower() in ("1", "true", "yes", "y")
+        return bool(value)
 
     @staticmethod
     def _compute_se(total_throughput, _total_prb=None):

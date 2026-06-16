@@ -358,7 +358,11 @@ private:
   uint64_t             dl_window_bytes_sum = 0;
   srsran::optional<std::chrono::steady_clock::time_point> dl_hol_ts;
   float                                                   dl_latency_ms = 0.0f;
+  float                                                   dl_latency_max_ms = 0.0f;
   uint32_t                                                last_dl_buffer = 0;
+  uint32_t                                                dl_service_gap_tti = 0;
+  uint32_t                                                dl_service_gap_max_tti = 0;
+  float                                                   refresh_dl_hol_latency_ms();
 
   tti_point                  current_tti;
   std::vector<sched_ue_cell> cells; ///< List of eNB cells that may be configured/activated/deactivated for the UE

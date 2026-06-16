@@ -152,6 +152,7 @@ void sched_ue::ul_phr(int phr, uint32_t grant_nof_prb)
 void sched_ue::dl_buffer_state(uint8_t lc_id, uint32_t tx_queue, uint32_t retx_queue)
 {
   lch_handler.dl_buffer_state(lc_id, tx_queue, retx_queue);
+  update_dl_hol_state(get_pending_dl_rlc_data());
 }
 
 void sched_ue::mac_buffer_state(uint32_t ce_code, uint32_t nof_cmds)
@@ -182,7 +183,25 @@ void sched_ue::metrics_read(mac_ue_metrics_t& metrics)
   uint32_t cc_idx = cfg.supported_cc_list[0].enb_cc_idx;
   sched_ue_cell& pcell = cells[cc_idx];
 
-  metrics = sched_metrics;
+  // Merge scheduler-owned metrics into the MAC UE snapshot. Do not reset the
+  // whole struct here: mac::ue already filled packet/error/PHR counters.
+  metrics.cc_idx            = sched_metrics.cc_idx;
+  metrics.dl_prb            = sched_metrics.dl_prb;
+  metrics.dl_mcs            = sched_metrics.dl_mcs;
+  metrics.dl_mcs_samples    = sched_metrics.dl_mcs_samples;
+  metrics.dl_retx_count     = sched_metrics.dl_retx_count;
+  metrics.dl_retx_flag      = sched_metrics.dl_retx_flag;
+  metrics.dl_service_gap_tti     = dl_service_gap_tti;
+  metrics.dl_service_gap_max_tti = dl_service_gap_max_tti;
+  metrics.dl_aggr_level     = sched_metrics.dl_aggr_level;
+  metrics.dl_alloc_count    = sched_metrics.dl_alloc_count;
+  metrics.dl_avg_rate       = sched_metrics.dl_avg_rate;
+  metrics.ul_prb            = sched_metrics.ul_prb;
+  metrics.ul_mcs            = sched_metrics.ul_mcs;
+  metrics.ul_mcs_samples    = sched_metrics.ul_mcs_samples;
+  metrics.dl_prio           = sched_metrics.dl_prio;
+  metrics.ul_prio           = sched_metrics.ul_prio;
+  copy_scheduler_trace_metrics(metrics);
 
   // --- CHANNEL ---
   metrics.dl_cqi = pcell.get_dl_cqi();
@@ -202,7 +221,10 @@ void sched_ue::metrics_read(mac_ue_metrics_t& metrics)
   auto* harq = get_pending_dl_harq(current_tti, cc_idx);
   metrics.harq_retx_pending = (harq != nullptr);
   metrics.dl_throughput = get_dl_window_throughput_bps();
-  metrics.dl_latency    = dl_latency_ms;
+  metrics.dl_latency    = refresh_dl_hol_latency_ms();
+  metrics.dl_hol_latency_max = dl_latency_max_ms;
+  dl_latency_max_ms = dl_latency_ms;
+  dl_service_gap_max_tti = dl_service_gap_tti;
   // === GBR metrics ===
   metrics.qci = get_default_qci();
   metrics.is_gbr_bearer = is_gbr_qci(metrics.qci);
@@ -340,6 +362,15 @@ void sched_ue::finalize_dl_metric_tti()
     dl_tti_bytes_window.pop_front();
   }
 
+  const uint32_t pending_dl_bytes = get_pending_dl_rlc_data();
+  update_dl_hol_state(pending_dl_bytes);
+  if (pending_dl_bytes > 0 && current_tti_dl_bytes == 0) {
+    dl_service_gap_tti++;
+  } else {
+    dl_service_gap_tti = 0;
+  }
+  dl_service_gap_max_tti = std::max(dl_service_gap_max_tti, dl_service_gap_tti);
+
   current_tti_dl_bytes   = 0;
   current_tti_dl_prbs    = 0;
   current_tti_dl_retx    = false;
@@ -355,9 +386,27 @@ void sched_ue::update_dl_hol_state(uint32_t curr_buffer)
 
   if (curr_buffer == 0) {
     dl_hol_ts.reset();
+    dl_latency_ms = 0.0f;
+    sched_metrics.dl_latency = dl_latency_ms;
+  } else {
+    refresh_dl_hol_latency_ms();
   }
 
   last_dl_buffer = curr_buffer;
+}
+
+float sched_ue::refresh_dl_hol_latency_ms()
+{
+  if (dl_hol_ts.has_value()) {
+    dl_latency_ms =
+        std::chrono::duration<float, std::milli>(std::chrono::steady_clock::now() - dl_hol_ts.value()).count();
+  } else if (last_dl_buffer == 0) {
+    dl_latency_ms = 0.0f;
+  }
+  dl_latency_max_ms = std::max(dl_latency_max_ms, dl_latency_ms);
+  sched_metrics.dl_latency = dl_latency_ms;
+  sched_metrics.dl_hol_latency_max = dl_latency_max_ms;
+  return dl_latency_ms;
 }
 
 void sched_ue::reset_metrics()
@@ -373,6 +422,7 @@ void sched_ue::reset_metrics()
   sched_metrics.rnti = rnti;
 
   sched_metrics.dl_latency = dl_latency_ms;
+  sched_metrics.dl_hol_latency_max = dl_latency_max_ms;
 
   // preserve PF state
   sched_metrics.dl_prio = old_dl_prio;

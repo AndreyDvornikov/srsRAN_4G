@@ -33,11 +33,14 @@ struct mac_ue_metrics_t {
     float    dl_throughput      = 0.0f;
     float    ul_throughput      = 0.0f;
     float    dl_latency         = 0.0f;
+    float    dl_hol_latency_max = 0.0f;
     float    dl_bler            = 0.0f;
     float    ul_bler            = 0.0f;
     uint32_t dl_buffer          = 0;
     uint32_t dl_retx_count      = 0;
     bool     dl_retx_flag       = false;
+    uint32_t dl_service_gap_tti     = 0;
+    uint32_t dl_service_gap_max_tti = 0;
     uint32_t dl_aggr_level      = 0;
     uint32_t dl_alloc_count     = 0;
     float    expected_bitrate   = 0.0f;
